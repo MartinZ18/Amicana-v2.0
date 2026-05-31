@@ -1,0 +1,28 @@
+# Entornos / dependencias (se reinstalan en el build)
+**/venv/
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+# Tests y artefactos de QA (no se necesitan en runtime)
+tests/
+backend/tests/
+playwright-report/
+test-results/
+playwright.config.js
+
+# Secretos y locales
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git / CI / docs
+.git/
+.github/
+docs/
+*.md
+
+# Logs
+*.log

@@ -1,0 +1,99 @@
+# =========================
+# CLAUDE / METODOLOGIA (no subir)
+# =========================
+.claude/
+CLAUDE.md
+CLAUDE_*.md
+SPRINT_*.md
+GUIA_INSTALACION.txt
+docs/specs/
+*.pdf
+
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Entornos virtuales
+venv/
+.env/
+.venv/
+
+# Variables de entorno
+.env
+.env.*
+.env.test
+
+# Archivos de configuración local
+instance/
+*.sqlite3
+*.db
+
+# =========================
+# N8N
+# =========================
+# Credenciales locales
+.n8n/
+
+# Base de datos local (si usas SQLite)
+database.sqlite
+
+# =========================
+# FRONTEND (HTML / CSS / JS)
+# =========================
+node_modules/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# TESTING
+# =========================
+.pytest_cache/
+playwright-report/
+test-results/
+resultado_tests*.txt
+coverage/
+.coverage
+
+# =========================
+# ARCHIVOS GENERADOS
+# =========================
+static/facturas/*.pdf
+static/*.pdf
+backend/static/facturas/*.pdf
+backend/static/*.pdf
+!backend/static/facturas/.gitkeep
+uploads/
+backend/uploads/
+
+# Asegurar que los ejemplos de configuración SÍ se suban
+!.env.example
+!.env.test.example
+
+# =========================
+# EDITORES
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# SISTEMA OPERATIVO
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# DOCKER (si lo usás)
+# =========================
+.env.docker
+docker-compose.override.yml

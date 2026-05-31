@@ -1,0 +1,265 @@
+/* AMICANA Chatbot Widget */
+
+#amicana-chat-bubble {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+#amicana-chat-toggle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #1a5fa8;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(26, 86, 219, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+#amicana-chat-toggle:hover {
+  background: #174f8c;
+  transform: scale(1.08);
+}
+
+#amicana-chat-toggle svg {
+  width: 26px;
+  height: 26px;
+  fill: #fff;
+  transition: opacity 0.15s;
+}
+
+#amicana-chat-toggle .icon-close { display: none; }
+#amicana-chat-bubble.open #amicana-chat-toggle .icon-chat { display: none; }
+#amicana-chat-bubble.open #amicana-chat-toggle .icon-close { display: block; }
+
+/* Panel */
+#amicana-chat-panel {
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  height: 520px;
+  max-height: calc(100vh - 100px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: amicana-slidein 0.22s ease;
+}
+
+#amicana-chat-bubble.open #amicana-chat-panel {
+  display: flex;
+}
+
+@keyframes amicana-slidein {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header */
+#amicana-chat-header {
+  background: #1a5fa8;
+  color: #fff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+#amicana-chat-header .avatar {
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+#amicana-chat-header .info { flex: 1; }
+#amicana-chat-header .info .name { font-weight: 600; font-size: 14px; line-height: 1.2; }
+#amicana-chat-header .info .subtitle { font-size: 12px; opacity: 0.85; }
+
+/* Messages */
+#amicana-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8f9fc;
+}
+
+#amicana-chat-messages::-webkit-scrollbar { width: 4px; }
+#amicana-chat-messages::-webkit-scrollbar-track { background: transparent; }
+#amicana-chat-messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+.amicana-msg {
+  max-width: 82%;
+  word-break: break-word;
+}
+
+.amicana-msg.bot { align-self: flex-start; }
+.amicana-msg.user { align-self: flex-end; }
+
+.amicana-msg .bubble {
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.amicana-msg.bot .bubble {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-bottom-left-radius: 4px;
+  color: #1f2937;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.amicana-msg.user .bubble {
+  background: #1a5fa8;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+/* QR image inside message */
+.amicana-msg .qr-img {
+  margin-top: 8px;
+  max-width: 180px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  display: block;
+}
+
+/* PDF link inside message */
+.amicana-msg .pdf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #166534;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.amicana-msg .pdf-link:hover { background: #dcfce7; }
+
+/* Typing indicator */
+.amicana-typing .bubble {
+  padding: 10px 14px !important;
+}
+
+.amicana-typing-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  height: 14px;
+}
+
+.amicana-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: amicana-dot 1.2s infinite ease-in-out;
+}
+
+.amicana-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.amicana-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes amicana-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Input area */
+#amicana-chat-input-area {
+  padding: 12px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 8px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+#amicana-chat-input {
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.4;
+  max-height: 80px;
+  overflow-y: auto;
+  transition: border-color 0.15s;
+}
+
+#amicana-chat-input:focus { border-color: #1a5fa8; }
+#amicana-chat-input::placeholder { color: #9ca3af; }
+
+#amicana-chat-send {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: #1a5fa8;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+#amicana-chat-send:hover { background: #174f8c; }
+#amicana-chat-send:disabled { background: #93c5fd; cursor: not-allowed; }
+
+#amicana-chat-send svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Error banner */
+#amicana-chat-error {
+  display: none;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 420px) {
+  #amicana-chat-bubble { bottom: 16px; right: 16px; }
+  #amicana-chat-panel { width: calc(100vw - 32px); height: 480px; }
+}

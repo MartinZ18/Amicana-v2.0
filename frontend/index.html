@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>AMICANA 2.0 — Acceso</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de gestión de pagos y cuotas del Instituto Cultural Argentino Norteamericano">
+    <!-- Preconnect for font performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="estilos.css">
+    <style>
+        /* Page-specific: password toggle & register accordion */
+        .pw-field {
+            position: relative;
+        }
+        .pw-field .form-control {
+            padding-right: 48px;
+        }
+        .pw-toggle {
+            position: absolute;
+            right: 0; top: 0;
+            width: 44px;
+            height: 100%;
+            min-height: 44px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--login-text-faint, #9ba3b8);
+            transition: color 0.2s;
+            border-radius: 0 12px 12px 0;
+        }
+        .pw-toggle:hover { color: var(--login-accent, #3b82f6); }
+        .pw-toggle svg { width: 18px; height: 18px; pointer-events: none; }
+
+        /* Modal completar perfil Google */
+        .gp-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.55);
+            backdrop-filter: blur(3px);
+            z-index: 9000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .gp-overlay.open { display: flex; }
+        .gp-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 32px 28px 24px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.18);
+        }
+        .gp-icon {
+            width: 48px; height: 48px;
+            background: #eff6ff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+            color: #3b82f6;
+        }
+        .gp-title {
+            font-size: 18px; font-weight: 700;
+            color: #1e293b; text-align: center; margin-bottom: 6px;
+        }
+        .gp-sub {
+            font-size: 13px; color: #64748b;
+            text-align: center; margin-bottom: 22px; line-height: 1.5;
+        }
+        .gp-field { margin-bottom: 16px; }
+        .gp-label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: #374151; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px;
+        }
+        .gp-input {
+            width: 100%; padding: 10px 14px;
+            border: 1.5px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; color: #1e293b; outline: none;
+            transition: border-color .2s;
+            box-sizing: border-box;
+        }
+        .gp-input:focus { border-color: #3b82f6; }
+        .gp-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        .gp-actions { display: flex; gap: 10px; margin-top: 24px; }
+        .gp-btn-save {
+            flex: 1; padding: 11px;
+            background: #3b82f6; color: #fff;
+            border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: background .2s;
+        }
+        .gp-btn-save:hover { background: #2563eb; }
+        .gp-btn-save:disabled { opacity: .6; cursor: not-allowed; }
+        .gp-btn-skip {
+            flex: 1; padding: 11px;
+            background: #f1f5f9; color: #475569;
+            border: none; border-radius: 8px; font-size: 14px; font-weight: 500;
+            cursor: pointer; transition: background .2s;
+        }
+        .gp-btn-skip:hover { background: #e2e8f0; }
+        .gp-msg { font-size: 12px; text-align: center; margin-top: 10px; min-height: 16px; }
+        .gp-msg.err { color: #ef4444; }
+        .gp-msg.ok  { color: #22c55e; }
+
+        /* Validation feedback */
+        .val-badge { font-size: 12px; font-weight: 700; margin-left: 6px; }
+        .val-ok  { color: #22c55e; }
+        .val-err { color: #ef4444; }
+        .pw-strength-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .pw-bar { height: 100%; border-radius: 2px; width: 0; transition: width .25s, background .25s; }
+        .pw-nivel { font-size: 11px; font-weight: 600; margin-left: 4px; }
+    </style>
+</head>
+<body class="login-page">
+
+<!-- Skip link -->
+<a href="#loginForm" class="skip-link">Ir al formulario de acceso</a>
+
+<!-- Decorative shapes -->
+<div class="login-deco login-deco--1" aria-hidden="true"></div>
+<div class="login-deco login-deco--2" aria-hidden="true"></div>
+<div class="login-deco login-deco--3" aria-hidden="true"></div>
+
+<!-- ── Glassmorphism Card ─────────────────────────────────────── -->
+<main class="login-form-panel" id="main-content" aria-label="Formulario de acceso">
+    <div class="login-form-box">
+
+        <!-- Logo -->
+        <div class="login-logo">
+            <div class="login-logo-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6M9 11h.01M15 11h.01"/>
+                </svg>
+            </div>
+            <div class="login-logo-text">
+                AMICANA
+                <small>Sistema de Gestión 2.0</small>
+            </div>
+        </div>
+
+        <h2 class="login-form-title">Bienvenido</h2>
+        <p class="login-form-sub">Ingresá con tu cuenta institucional</p>
+
+        <!-- LOGIN FORM -->
+        <form id="loginForm" data-testid="login-form" onsubmit="login(event)" novalidate>
+
+            <div class="form-group">
+                <label class="form-label" for="loginEmail">Correo electrónico</label>
+                <div class="login-input-wrap">
+                    <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    <input class="form-control" type="email" id="loginEmail" data-testid="login-email" name="email" placeholder="usuario@amicana.com" autocomplete="email" inputmode="email" required aria-required="true" aria-describedby="loginMsg">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="loginPassword">Contraseña</label>
+                <div class="login-input-wrap pw-field">
+                    <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <input class="form-control" type="password" id="loginPassword" data-testid="login-password" name="password" placeholder="••••••••" autocomplete="current-password" required aria-required="true">
+                    <button type="button" class="pw-toggle" id="toggleLoginPw" aria-label="Mostrar contraseña" onclick="togglePw('loginPassword', this)">
+                        <svg id="iconEyeLogin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="btnLogin" data-testid="login-submit">
+                Ingresar
+            </button>
+
+            <div id="loginMsg" class="msg" role="alert" aria-live="polite" data-testid="login-message"></div>
+
+        </form>
+
+        <a href="/auth/google/login" class="btn-google" id="btnGoogle" data-testid="btn-google">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+            </svg>
+            <span>Continuar con Google</span>
+        </a>
+
+        <div class="login-divider">o</div>
+
+        <div class="register-toggle">
+            ¿No tenés cuenta?&nbsp;
+            <button type="button" class="btn btn-ghost" onclick="toggleRegistro()" aria-expanded="false" aria-controls="registroSection" id="btnToggleRegistro" data-testid="btn-toggle-registro">
+                Crear cuenta
+            </button>
+        </div>
+
+        <!-- REGISTER SECTION (accordion) -->
+        <div id="registroSection" class="register-section" aria-hidden="true">
+            <div class="divider"></div>
+            <h3 class="register-heading">Crear nueva cuenta</h3>
+
+            <form id="registroForm" onsubmit="crearUsuario(event)" novalidate>
+
+                <div class="form-group">
+                    <label class="form-label" for="registroNombre">Nombre completo</label>
+                    <div class="login-input-wrap">
+                        <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <input class="form-control" type="text" id="registroNombre" data-testid="registro-nombre" name="nombre" placeholder="Ej: María García" autocomplete="name" required aria-required="true">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="registroEmail">Correo electrónico<span id="emailBadge" class="val-badge" aria-live="polite" data-testid="registro-email-badge"></span></label>
+                    <div class="login-input-wrap">
+                        <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <input class="form-control" type="email" id="registroEmail" data-testid="registro-email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" inputmode="email" required aria-required="true">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="registroPassword">Contraseña</label>
+                    <div class="login-input-wrap pw-field">
+                        <svg class="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input class="form-control" type="password" id="registroPassword" data-testid="registro-password" name="password" placeholder="Mínimo 8 caracteres, con letras y números" autocomplete="new-password" required aria-required="true" minlength="8" aria-describedby="pwHint">
+                        <button type="button" class="pw-toggle" aria-label="Mostrar contraseña" onclick="togglePw('registroPassword', this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="pw-strength-bar" aria-hidden="true"><div id="pwBar" class="pw-bar"></div></div>
+                    <span class="form-hint" id="pwHint">Mínimo 8 caracteres, con letras y números.<span id="pwNivel" class="pw-nivel" data-testid="pw-fuerza"></span></span>
+                </div>
+
+                <input type="hidden" id="registroRol" name="rol" value="alumno">
+
+                <div class="form-group" style="display:flex;align-items:flex-start;gap:10px;margin-top:4px;">
+                    <input type="checkbox" id="chkTerminos" data-testid="registro-terminos"
+                           style="margin-top:3px;flex-shrink:0;accent-color:#3b82f6;">
+                    <label for="chkTerminos" style="font-size:13px;color:#64748b;line-height:1.5;cursor:pointer;">
+                        Acepto los
+                        <a href="/app/terms.html" target="_blank" rel="noopener"
+                           style="color:#3b82f6;text-decoration:underline;">términos y condiciones</a>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-secondary w-full" id="btnCrear" data-testid="registro-submit" disabled style="margin-top:12px;">
+                    Crear cuenta
+                </button>
+
+                <div id="registroMsg" class="msg" role="alert" aria-live="polite" data-testid="registro-message"></div>
+
+            </form>
+        </div>
+
+    </div>
+
+    <p class="login-footer">
+        AMICANA 2.0 &mdash; Sistema de Gestión Administrativa
+    </p>
+</main>
+
+<!-- Modal: completar perfil tras login Google -->
+<div id="gpOverlay" class="gp-overlay" role="dialog" aria-modal="true" aria-labelledby="gpTitle">
+    <div class="gp-box">
+        <div class="gp-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+        </div>
+        <h2 class="gp-title" id="gpTitle">Completá tu perfil</h2>
+        <p class="gp-sub" id="gpSubNormal">
+            Ingresaste con Google. Para usar todas las funciones del sistema,
+            necesitamos un par de datos más. Podés completarlos ahora o después.
+        </p>
+        <p class="gp-sub" id="gpSubSoloPw" style="display:none;">
+            Tu cuenta usa Google. Si querés, podés definir una contraseña para también ingresar con email y contraseña.
+        </p>
+        <div id="gpDniTelSection">
+            <div class="gp-field">
+                <label class="gp-label" for="gpDni">DNI</label>
+                <input class="gp-input" type="text" id="gpDni" inputmode="numeric" placeholder="Ej: 40123456" maxlength="8">
+                <p class="gp-hint">7 u 8 dígitos, sin puntos</p>
+            </div>
+            <div class="gp-field">
+                <label class="gp-label" for="gpTel">Teléfono</label>
+                <input class="gp-input" type="tel" id="gpTel" placeholder="Ej: +54 9 11 1234-5678">
+            </div>
+        </div>
+        <div class="gp-field">
+            <label class="gp-label" for="gpPw">Contraseña (opcional)</label>
+            <div style="position:relative;">
+                <input class="gp-input" type="password" id="gpPw" placeholder="Mínimo 8 caracteres" style="padding-right:42px;">
+                <button type="button" onclick="gpTogglePw()" style="position:absolute;right:0;top:0;width:40px;height:100%;background:none;border:none;cursor:pointer;color:#94a3b8;" aria-label="Mostrar contraseña">
+                    <svg id="gpPwEye" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+            </div>
+            <p class="gp-hint">Mínimo 8 caracteres, con letras y números. Si la completás, también podrás entrar con email y contraseña.</p>
+        </div>
+        <div id="gpMsg" class="gp-msg"></div>
+        <div class="gp-actions">
+            <button class="gp-btn-save" id="gpBtnGuardar" onclick="gpGuardar()">Guardar</button>
+            <button class="gp-btn-skip" onclick="gpSaltar()">Completar después</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── Password show/hide ─────────────────────────────────────── */
+/* SVG paths for eye-off icon */
+const EYE_OFF_PATHS = `
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478
+             0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029
+             m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242
+             4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29
+             3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478
+             0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132
+             5.411m0 0L21 21"/>`;
+const EYE_ON_PATHS = `
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268
+             2.943 9.542 7-1.274 4.057-5.064 7-9.542 7
+             -4.477 0-8.268-2.943-9.542-7z"/>`;
+
+function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const svg   = btn.querySelector('svg');
+    const show  = input.type === 'password';
+    input.type  = show ? 'text' : 'password';
+    btn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    svg.innerHTML = show ? EYE_OFF_PATHS : EYE_ON_PATHS;
+}
+
+/* ── Register accordion ─────────────────────────────────────── */
+function toggleRegistro() {
+    const section = document.getElementById('registroSection');
+    const btn     = document.getElementById('btnToggleRegistro');
+    const isOpen  = section.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen);
+    section.setAttribute('aria-hidden', !isOpen);
+    if (isOpen) {
+        // scroll so the form is visible on small screens
+        setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+    }
+}
+
+/* ── Messages ───────────────────────────────────────────────── */
+function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.className = `msg msg-${type} show`;
+    el.textContent = text;
+}
+
+function hideMsg(id) {
+    document.getElementById(id).className = 'msg';
+}
+
+/* ── Token storage helpers ──────────────────────────────────── */
+/* Regla AMICANA: el JWT vive en sessionStorage (no localStorage). */
+const TOKEN_KEY = 'token';
+
+function saveToken(token) {
+    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_KEY, token);
+}
+
+function readToken() {
+    /* Primero sessionStorage (canónico). Si encontramos un token viejo
+       en localStorage, lo migramos en silencio y lo borramos. */
+    let t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) {
+        const legacy = localStorage.getItem(TOKEN_KEY);
+        if (legacy) {
+            sessionStorage.setItem(TOKEN_KEY, legacy);
+            localStorage.removeItem(TOKEN_KEY);
+            t = legacy;
+        }
+    }
+    return t;
+}
+
+function clearToken() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+}
+
+function decodeJwt(t) {
+    try { return JSON.parse(atob(t.split('.')[1])); }
+    catch { return null; }
+}
+
+function redirectByRol(rol) {
+    if (rol === 'admin' || rol === 'administrativo') {
+        window.location.href = 'admin.html';
+    } else if (rol === 'alumno') {
+        window.location.href = 'alumno.html';
+    }
+}
+
+/* ── Login ──────────────────────────────────────────────────── */
+async function login(e) {
+    e.preventDefault();
+    const email    = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const btn      = document.getElementById('btnLogin');
+
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Conectando...';
+    hideMsg('loginMsg');
+
+    const body = new URLSearchParams();
+    body.append('username', email);
+    body.append('password', password);
+
+    try {
+        const res  = await fetch('/login', { method: 'POST', body });
+        const data = await res.json();
+
+        if (res.ok) {
+            saveToken(data.access_token);
+            showMsg('loginMsg', 'Acceso concedido. Redirigiendo...', 'success');
+
+            const payload = decodeJwt(data.access_token);
+            setTimeout(() => redirectByRol(payload && payload.rol), 700);
+        } else {
+            showMsg('loginMsg', data.detail || 'Credenciales incorrectas', 'error');
+            btn.disabled = false;
+            btn.setAttribute('aria-busy', 'false');
+            btn.textContent = 'Ingresar';
+            document.getElementById('loginPassword').focus();
+        }
+    } catch (err) {
+        showMsg('loginMsg', 'Error de conexión: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+        btn.textContent = 'Ingresar';
+    }
+}
+
+/* ── Create account ─────────────────────────────────────────── */
+async function crearUsuario(e) {
+    e.preventDefault();
+    const btn      = document.getElementById('btnCrear');
+    const email    = document.getElementById('registroEmail').value.trim();
+    const password = document.getElementById('registroPassword').value;
+
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = 'Creando...';
+    hideMsg('registroMsg');
+
+    try {
+        const res = await fetch('/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nombre:   document.getElementById('registroNombre').value,
+                email,
+                password,
+                rol:      'alumno',
+            })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showMsg('registroMsg', 'Cuenta creada. Ingresando...', 'success');
+            /* Auto-login */
+            try {
+                const loginRes = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                const loginData = await loginRes.json();
+                if (loginRes.ok && loginData.access_token) {
+                    saveToken(loginData.access_token);
+                    const payload = decodeJwt(loginData.access_token);
+                    setTimeout(() => redirectByRol(payload && payload.rol), 600);
+                    return;
+                }
+            } catch (_) { /* auto-login falló, caer al mensaje manual */ }
+            /* Si el auto-login falla, mostrar indicación y enfocar campo login */
+            showMsg('registroMsg', 'Cuenta creada. Iniciá sesión.', 'success');
+            e.target.reset();
+            toggleRegistro();
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginEmail').focus();
+        } else {
+            showMsg('registroMsg', data.mensaje || data.detail || 'Error al crear cuenta', 'error');
+        }
+    } catch (err) {
+        showMsg('registroMsg', 'Error: ' + err.message, 'error');
+    }
+
+    btn.disabled = false;
+    btn.setAttribute('aria-busy', 'false');
+    btn.textContent = 'Crear cuenta';
+}
+
+/* ── Google OAuth callback handling ─────────────────────────── */
+/* El backend redirige a esta página con `?token=...&rol=...` tras un
+   login exitoso con Google. Tomamos el token, lo guardamos en
+   sessionStorage y limpiamos la URL antes de redirigir por rol.
+   Si el perfil tiene campos vacíos (dni/telefono) mostramos un modal
+   para que el usuario los complete antes de entrar al dashboard. */
+let _gpRol = null;
+let _gpSoloPasswordMode = false;
+
+async function consumeGoogleToken() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (!token) return false;
+    saveToken(token);
+    const clean = window.location.pathname;
+    window.history.replaceState({}, document.title, clean);
+    const payload = decodeJwt(token);
+    _gpRol = (params.get('rol')) || (payload && payload.rol);
+
+    /* Solo mostramos el modal a alumnos que ingresan por Google */
+    if (_gpRol === 'alumno') {
+        try {
+            const res = await fetch('/perfil', {
+                headers: { Authorization: 'Bearer ' + token }
+            });
+            if (res.ok) {
+                const text = await res.text();
+                let data = {};
+                try { data = JSON.parse(text); } catch (_) { /* respuesta no-JSON, redirigir */ }
+                const perfil = data.data || data;
+                if (!perfil) { redirectByRol(_gpRol); return true; }
+
+                const sinDatos = !perfil.dni || !perfil.telefono;
+                const skipUntil = localStorage.getItem('gp_skip_pw_until');
+                const skipActivo = skipUntil && new Date(skipUntil) > new Date();
+                const sinPwLocal = perfil.auth_provider === 'google'
+                    && !perfil.tiene_password_local
+                    && !skipActivo;
+
+                if (sinDatos || sinPwLocal) {
+                    _gpSoloPasswordMode = !sinDatos && sinPwLocal;
+                    if (_gpSoloPasswordMode) {
+                        document.getElementById('gpDniTelSection').style.display = 'none';
+                        document.getElementById('gpSubNormal').style.display    = 'none';
+                        document.getElementById('gpSubSoloPw').style.display    = 'block';
+                        document.getElementById('gpTitle').textContent = 'Definí tu contraseña';
+                        document.getElementById('gpPw').placeholder = 'Mínimo 8 caracteres, con letras y números';
+                        const btnSkip = document.querySelector('.gp-btn-skip');
+                        if (btnSkip) btnSkip.textContent = 'Más tarde (30 días)';
+                    }
+                    document.getElementById('gpOverlay').classList.add('open');
+                    return true;
+                }
+            }
+        } catch (_) { /* si falla el fetch, redirigir igual */ }
+    }
+
+    redirectByRol(_gpRol);
+    return true;
+}
+
+/* ── Modal completar perfil Google ─────────────────────────── */
+function gpTogglePw() {
+    const input = document.getElementById('gpPw');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+async function gpGuardar() {
+    const dni = document.getElementById('gpDni').value.trim();
+    const tel = document.getElementById('gpTel').value.trim();
+    const pw  = document.getElementById('gpPw').value;
+    const msgEl = document.getElementById('gpMsg');
+
+    if (_gpSoloPasswordMode) {
+        if (!pw) {
+            msgEl.textContent = 'Ingresá una contraseña o usá "Más tarde".';
+            msgEl.className = 'gp-msg err';
+            return;
+        }
+    } else if (!dni && !tel && !pw) {
+        msgEl.textContent = 'Completá al menos un campo o usá "Completar después".';
+        msgEl.className = 'gp-msg err';
+        return;
+    }
+    if (dni && !/^\d{7,8}$/.test(dni)) {
+        msgEl.textContent = 'El DNI debe tener 7 u 8 dígitos numéricos.';
+        msgEl.className = 'gp-msg err';
+        return;
+    }
+    if (pw && !esPasswordFuerte(pw)) {
+        msgEl.textContent = 'La contraseña debe tener al menos 8 caracteres, una letra y un número.';
+        msgEl.className = 'gp-msg err';
+        return;
+    }
+
+    const btn = document.getElementById('gpBtnGuardar');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    msgEl.className = 'gp-msg';
+    msgEl.textContent = '';
+
+    const body = {};
+    if (!_gpSoloPasswordMode) {
+        if (dni) body.dni = dni;
+        if (tel) body.telefono = tel;
+    }
+    if (pw) body.password = pw;
+
+    const endpoint = _gpSoloPasswordMode ? '/perfil/setear-password' : '/perfil/completar';
+    const method   = _gpSoloPasswordMode ? 'POST' : 'PUT';
+
+    try {
+        const res = await fetch(endpoint, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + readToken()
+            },
+            body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        let data = {};
+        try { data = JSON.parse(text); } catch (_) { /* respuesta no-JSON */ }
+
+        if (res.ok) {
+            msgEl.textContent = '¡Perfil guardado!';
+            msgEl.className = 'gp-msg ok';
+            setTimeout(() => redirectByRol(_gpRol), 700);
+        } else {
+            const detail = typeof data.detail === 'string'
+                ? data.detail
+                : `Error ${res.status} — reiniciá el servidor e intentá de nuevo.`;
+            msgEl.textContent = detail;
+            msgEl.className = 'gp-msg err';
+            btn.disabled = false;
+            btn.textContent = 'Guardar';
+        }
+    } catch (err) {
+        msgEl.textContent = 'Error de red. Verificá que el servidor esté corriendo.';
+        msgEl.className = 'gp-msg err';
+        btn.disabled = false;
+        btn.textContent = 'Guardar';
+    }
+}
+
+function gpSaltar() {
+    if (_gpSoloPasswordMode) {
+        const hasta = new Date();
+        hasta.setDate(hasta.getDate() + 30);
+        localStorage.setItem('gp_skip_pw_until', hasta.toISOString().slice(0, 10));
+    }
+    document.getElementById('gpOverlay').classList.remove('open');
+    redirectByRol(_gpRol);
+}
+
+/* ── Live validation (Tarea 2) ──────────────────────────────── */
+function esEmailValido(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function esPasswordFuerte(pw) {
+    return pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw);
+}
+
+function setValBadge(id, valido) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = valido ? ' ✓' : ' ✗';
+    el.className = 'val-badge ' + (valido ? 'val-ok' : 'val-err');
+}
+
+function actualizarFuerzaPw(pw) {
+    const bar = document.getElementById('pwBar');
+    const nivel = document.getElementById('pwNivel');
+    if (!bar || !nivel) return;
+    let score = 0;
+    if (pw.length >= 8)       score++;
+    if (/[a-zA-Z]/.test(pw)) score++;
+    if (/\d/.test(pw))        score++;
+    const etiquetas = ['', ' Débil', ' Media', ' Fuerte'];
+    const colores   = ['', '#ef4444', '#f59e0b', '#22c55e'];
+    bar.style.width      = pw ? `${score * 33}%` : '0';
+    bar.style.background = colores[score];
+    nivel.textContent    = pw ? etiquetas[score] : '';
+    nivel.style.color    = colores[score];
+}
+
+function actualizarBtnCrear() {
+    const nombre    = document.getElementById('registroNombre').value.trim();
+    const email     = document.getElementById('registroEmail').value.trim();
+    const pw        = document.getElementById('registroPassword').value;
+    const chk       = document.getElementById('chkTerminos');
+    const btn       = document.getElementById('btnCrear');
+    btn.disabled = !(nombre.length >= 2 && esEmailValido(email) && esPasswordFuerte(pw) && chk && chk.checked);
+}
+
+function actualizarBtnGuardar() {
+    const dni = document.getElementById('gpDni').value.trim();
+    const pw  = document.getElementById('gpPw').value;
+    const btn = document.getElementById('gpBtnGuardar');
+    const dniOk = !dni || /^\d{7,8}$/.test(dni);
+    const pwOk  = !pw  || esPasswordFuerte(pw);
+    btn.disabled = !dniOk || !pwOk;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    /* Registro: email */
+    const regEmail = document.getElementById('registroEmail');
+    regEmail.addEventListener('input', () => {
+        const v = regEmail.value.trim();
+        if (v) setValBadge('emailBadge', esEmailValido(v));
+        else document.getElementById('emailBadge').textContent = '';
+        actualizarBtnCrear();
+    });
+
+    /* Registro: password */
+    const regPw = document.getElementById('registroPassword');
+    regPw.addEventListener('input', () => {
+        actualizarFuerzaPw(regPw.value);
+        actualizarBtnCrear();
+    });
+
+    /* Registro: nombre */
+    document.getElementById('registroNombre').addEventListener('input', actualizarBtnCrear);
+
+    /* Registro: términos */
+    const chk = document.getElementById('chkTerminos');
+    if (chk) chk.addEventListener('change', actualizarBtnCrear);
+
+    /* Modal Google: DNI (solo dígitos) */
+    const gpDniEl = document.getElementById('gpDni');
+    if (gpDniEl) {
+        gpDniEl.addEventListener('input', () => {
+            gpDniEl.value = gpDniEl.value.replace(/\D/g, '');
+            actualizarBtnGuardar();
+        });
+    }
+
+    /* Modal Google: teléfono y password */
+    ['gpTel', 'gpPw'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', actualizarBtnGuardar);
+    });
+});
+
+/* ── Auto-redirect if already logged in ─────────────────────── */
+window.addEventListener('load', async () => {
+    if (await consumeGoogleToken()) return;
+    const token = readToken();
+    if (!token) return;
+    const p = decodeJwt(token);
+    if (p && p.exp * 1000 > Date.now()) {
+        redirectByRol(p.rol);
+    } else {
+        clearToken();
+    }
+});
+</script>
+
+</body>
+</html>

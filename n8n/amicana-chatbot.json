@@ -1,0 +1,871 @@
+{
+  "name": "AMICANA Chatbot — Cuotas (Groq)",
+  "nodes": [
+    {
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "amicana-chatbot",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-get-history",
+      "name": "Get Session History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst sessionId = body.session_id || '';\nconst message   = body.message   || '';\n\nif (!sessionId || !message) {\n  throw new Error('session_id and message are required');\n}\n\nreturn [{ json: { session_id: sessionId, message: message } }];"
+      }
+    },
+    {
+      "id": "node-load-session",
+      "name": "Load Session API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        560,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://proyecto-amicana-20-production.up.railway.app/chatbot/session/{{ $json.session_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-hydrate-session",
+      "name": "Hydrate Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const apiResp = $input.first().json;\nconst body    = $('Get Session History').first().json;\nconst loaded  = (apiResp && apiResp.session) || null;\n\nconst session = loaded || { history: [], alumno_id: null, estado: 'sin_autenticar', intentos_auth: 0 };\n\nconst history       = session.history || [];\nconst session_state = session.estado || 'sin_autenticar';\nconst alumno_id     = session.alumno_id || null;\n\nconst systemPrompt = `Sos Ianna, la asistente virtual del Instituto AMICANA (Instituto Cultural Argentino Norteamericano). Atendes a alumnos y a personas interesadas en los cursos. Dirigite SIEMPRE a la persona de manera formal y cordial, tratandola de usted; manten las respuestas breves, claras y profesionales.\\n\\nResponde SIEMPRE con un JSON valido con exactamente estas claves: intent, params, response.\\n\\nINTENTS DISPONIBLES:\\nAUTH: la persona quiere identificarse, o pide informacion personal (cuotas, deuda, pagos) sin estar autenticada. Si menciona un numero de documento ponelo en params.dni; si menciona un correo ponelo en params.email.\\nESTADO: ya autenticada, quiere ver sus cuotas, deuda o estado de cuenta.\\nPAGAR: quiere pagar o abonar una cuota. Si indica cual, pone el numero en params.cuota_id.\\nCONFIRMAR: informa que ya realizo un pago. Si los menciona, pone params.cuota_id y params.comprobante.\\nCERRAR: se despide o da por terminada la conversacion.\\nFUERA_SCOPE: cualquier otra consulta (saludo, horarios, cursos, modalidades, examenes, inscripciones o dudas generales). Responde de forma util y formal en el campo response, usando SOLO esta informacion real:\\n  - Horarios: lunes a viernes de 8:30 a 21:00; sabados de 8:30 a 12:30.\\n  - Modalidades: presencial, virtual e hibrida.\\n  - Cursos: English A1 Beginners, B1 Intermediate, C1 Advanced y Conversation Class.\\n  - Examenes internacionales: ECECE (nivel A2), TOEIC Bridge (A2), TOEIC (B1) y TOEFL iBT (B2).\\n  - Inscripciones: de forma presencial en la sede o por este mismo chat.\\n  - Para consultar cuotas o pagar es necesario identificarse con documento o correo.\\n\\nREGLAS DE CONVERSACION (muy importantes):\\n- Aprovecha el historial: NO vuelvas a preguntar ni a repetir informacion ya intercambiada, y si ya saludaste no te presentes de nuevo.\\n- Al iniciar la conversacion la persona ya vio un saludo con un menu de opciones (consultar cuotas, pagar una cuota, informacion de cursos y examenes). Si elige una opcion (un numero, o frases como 'mis cuotas', 'pagar', 'cursos', 'examenes'), interpreta su intencion y avanza; nunca vuelvas a mostrar el menu completo.\\n- Si no entendes, pedi una aclaracion concreta y DISTINTA de la anterior; jamas repitas la misma frase dos veces seguidas.\\n- Si no esta autenticada y pide ESTADO, PAGAR o CONFIRMAR, usa AUTH y pedi documento o correo una sola vez por turno.\\n- No inventes datos que no figuren arriba; si no tenes el dato, indica que puede consultarlo en secretaria o en la sede.\\n- El campo response va siempre en espanol formal (trato de usted), en 1 a 3 oraciones.\\n\\nEstado de la sesion: ${session_state}\\nAlumno identificado: ${alumno_id || 'ninguno'}`;\n\nconst messages = [{ role: 'system', content: systemPrompt }]\n  .concat(history.map(h => ({ role: h.role === 'model' ? 'assistant' : 'user', content: (h.parts && h.parts[0] ? h.parts[0].text : '') })))\n  .concat([{ role: 'user', content: body.message }]);\n\nreturn [{\n  json: {\n    session_id: body.session_id,\n    message: body.message,\n    history: history,\n    alumno_id: alumno_id,\n    session_state: session_state,\n    intentos_auth: session.intentos_auth || 0,\n    messages: messages\n  }\n}];"
+      }
+    },
+    {
+      "id": "node-gemini-router",
+      "name": "Groq Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.GROQ_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": {{ JSON.stringify($json.messages) }},\n  \"temperature\": 0.1,\n  \"max_tokens\": 512,\n  \"response_format\": { \"type\": \"json_object\" }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-parse-intent",
+      "name": "Parse Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst cand = resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content;\nlet parsed;\nif (!cand) {\n  const apiErr = (resp.error && resp.error.message) ? resp.error.message : JSON.stringify(resp).slice(0, 300);\n  parsed = { intent: 'FUERA_SCOPE', params: {}, response: '[DIAG] Groq no respondio: ' + apiErr };\n} else {\n  try {\n    const clean = cand.replace(/```json?\\n?/g, '').replace(/```/g, '').trim();\n    parsed = JSON.parse(clean);\n  } catch (err) {\n    parsed = { intent: 'FUERA_SCOPE', params: {}, response: 'Disculpe, no pude procesar su consulta. ¿Podría reformularla, por favor?' };\n  }\n}\n\nconst prev = $('Hydrate Session').first().json;\nreturn [{\n  json: {\n    intent: (parsed.intent || 'FUERA_SCOPE').toUpperCase(),\n    params: parsed.params || {},\n    response: parsed.response || '',\n    session_id: prev.session_id,\n    message: prev.message,\n    history: prev.history,\n    alumno_id: prev.alumno_id,\n    session_state: prev.session_state,\n    intentos_auth: prev.intentos_auth\n  }\n}];"
+      }
+    },
+    {
+      "id": "node-switch",
+      "name": "Intent Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1280,
+        300
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "cond-auth",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "AUTH",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AUTH"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "cond-estado",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "ESTADO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ESTADO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "cond-pagar",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "PAGAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PAGAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "cond-confirmar",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "CONFIRMAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CONFIRMAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "cond-cerrar",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "CERRAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CERRAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "cond-fuera",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "FUERA_SCOPE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "FUERA_SCOPE"
+            }
+          ]
+        },
+        "fallbackOutput": "5",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-auth-api",
+      "name": "Auth — Buscar Alumno",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        60
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://proyecto-amicana-20-production.up.railway.app/alumnos/buscar?{{ $json.params.dni ? 'dni=' + $json.params.dni : 'email=' + ($json.params.email || '') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-auth-format",
+      "name": "Auth — Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        60
+      ],
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nlet text;\n\nif (apiResult.ok && apiResult.alumno) {\n  const a = apiResult.alumno;\n  text = `¡Hola, ${a.nombre}! Te identifiqué correctamente. Podés consultar tus cuotas, pagar una cuota o confirmar un pago ya realizado.`;\n  session.estado = 'autenticado';\n  session.alumno_id = a.id;\n  session.intentos_auth = 0;\n} else {\n  session.intentos_auth = (session.intentos_auth || 0) + 1;\n  if (session.intentos_auth >= 3) {\n    text = 'No pude identificarte luego de 3 intentos. Comunicate con la secretaria de AMICANA. ¡Hasta luego!';\n    session.estado = 'cerrado';\n  } else {\n    text = `No encontré ningún alumno con esos datos (intento ${session.intentos_auth}/3). ¿Podés verificar tu DNI o email e intentar de nuevo?`;\n  }\n}\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+      }
+    },
+    {
+      "id": "node-estado-api",
+      "name": "Estado — Cuotas Alumno",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://proyecto-amicana-20-production.up.railway.app/alumnos/{{ $json.alumno_id }}/cuotas",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-estado-format",
+      "name": "Estado — Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'autenticado', intentos_auth: prev.intentos_auth || 0 };\n\nlet text;\nif (!prev.alumno_id) {\n  text = 'Primero necesito identificarte. ¿Cuál es tu DNI o email?';\n} else if (apiResult.ok) {\n  const r = apiResult.resumen;\n  if (r.estado === 'Al día') {\n    text = `¡Estás al día! Tenés ${r.cuotas_pagadas} cuota(s) paga(s). No hay deuda pendiente.`;\n  } else {\n    const lista = (apiResult.pendientes || []).map(c => `• ${c.concepto}: $${c.monto} (vence ${c.fecha_vencimiento})`).join('\\n');\n    text = `Tenés deuda por $${r.deuda_total}. Cuotas pendientes:\\n${lista}\\n\\n¿Querés pagar alguna? Decime el número de cuota.`;\n  }\n} else {\n  text = 'No pude obtener tu estado de cuenta. Intentá de nuevo en unos segundos.';\n}\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+      }
+    },
+    {
+      "id": "node-pagar-mp",
+      "name": "Pagar — Crear Pago MP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        340
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://proyecto-amicana-20-production.up.railway.app/pagar-cuota/{{ $('Parse Intent').first().json.params.cuota_id || 0 }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            },
+            {
+              "name": "X-Chatbot-Session-Id",
+              "value": "={{ $('Get Session History').first().json.session_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"alumno_id\": {{ $('Parse Intent').first().json.alumno_id || 0 }} }",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-pagar-pdf",
+      "name": "Pagar — Generar PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        430
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://proyecto-amicana-20-production.up.railway.app/pagos/generar-factura-pdf",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            },
+            {
+              "name": "X-Chatbot-Session-Id",
+              "value": "={{ $('Get Session History').first().json.session_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"cuota_id\": {{ $('Parse Intent').first().json.params.cuota_id || 0 }}, \"alumno_id\": {{ $('Parse Intent').first().json.alumno_id || 0 }} }",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-pagar-format",
+      "name": "Pagar — Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        385
+      ],
+      "parameters": {
+        "jsCode": "const pdfResult = $('Pagar — Generar PDF').first().json;\nconst mpResult  = $('Pagar — Crear Pago MP').first().json;\nconst prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'autenticado', intentos_auth: prev.intentos_auth || 0 };\n\nlet text, qr_url = null, pdf_url = null;\n\nif (!prev.alumno_id) {\n  text = 'Primero necesito identificarte. ¿Cuál es tu DNI o email?';\n} else if (!prev.params?.cuota_id) {\n  text = 'Para generar el pago necesito saber qué cuota querés abonar. ¿Podés decirme el número de cuota?';\n} else if (mpResult.ok) {\n  const link = mpResult.sandbox_init_point || mpResult.init_point || null;\n  const monto = mpResult.monto || '';\n  text = monto ? `Generé el enlace de pago por $${monto}.` : 'Generé el enlace de pago.';\n  if (link) text += ` Pagá con MercadoPago: ${link}`;\n  if (pdfResult.ok && pdfResult.pdf_url) {\n    pdf_url = pdfResult.pdf_url;\n    text += ' También podés descargar tu comprobante en PDF.';\n  }\n} else {\n  text = 'No pude generar el pago en este momento. Intentá de nuevo o contactá a secretaría.';\n}\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url, pdf_url, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+      }
+    },
+    {
+      "id": "node-confirmar-api",
+      "name": "Confirmar — Registrar Pago",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1500,
+        555
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://proyecto-amicana-20-production.up.railway.app/pagos/confirmar-manual",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            },
+            {
+              "name": "X-Chatbot-Session-Id",
+              "value": "={{ $('Get Session History').first().json.session_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"alumno_id\":   {{ $json.alumno_id || 0 }},\n  \"cuota_id\":    {{ $json.params.cuota_id || 0 }},\n  \"comprobante\": \"{{ $json.params.comprobante || 'Sin comprobante' }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-confirmar-format",
+      "name": "Confirmar — Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        555
+      ],
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'autenticado', intentos_auth: prev.intentos_auth || 0 };\n\nlet text;\nif (!prev.alumno_id) {\n  text = 'Primero necesito identificarte. ¿Cuál es tu DNI o email?';\n} else if (apiResult.ok) {\n  text = apiResult.mensaje || 'Tu confirmación de pago fue registrada. Un administrador la validará pronto.';\n} else {\n  text = `No pude registrar la confirmación: ${apiResult.detail || 'error desconocido'}. Revisá los datos e intentá de nuevo.`;\n}\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+      }
+    },
+    {
+      "id": "node-cerrar-format",
+      "name": "Cerrar — Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        670
+      ],
+      "parameters": {
+        "jsCode": "const prev = $('Parse Intent').first().json;\nconst text = prev.response || '¡Hasta luego! Si necesitás ayuda de nuevo, estoy por acá.';\n// Cerrar marca la sesión y deja el history como estaba (sin agregar más turnos).\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: prev.alumno_id, estado: 'cerrado', intentos_auth: prev.intentos_auth || 0, history: prev.history || [] } } }];"
+      }
+    },
+    {
+      "id": "node-fuera-scope-format",
+      "name": "Fuera Scope — Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        785
+      ],
+      "parameters": {
+        "jsCode": "const prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nconst text = prev.response || 'Puedo ayudarle con sus cuotas y pagos, y con información sobre cursos, modalidades y exámenes internacionales. ¿Sobre qué tema desea consultar?';\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+      }
+    },
+    {
+      "id": "node-save-session",
+      "name": "Save Session API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst sessionData = data._session;\n\nif (sessionData) {\n  try {\n    await $helpers.httpRequest({\n      method: 'POST',\n      url: 'https://proyecto-amicana-20-production.up.railway.app/chatbot/session',\n      headers: {\n        'Content-Type': 'application/json',\n        'X-Chatbot-Key': $env.CHATBOT_INTERNAL_KEY || 'amicana-internal'\n      },\n      body: sessionData,\n      timeout: 8000\n    });\n  } catch(e) {\n    // non-fatal\n  }\n}\n\nreturn [{ json: {\n  text: data.text || 'Lo siento, ocurrió un error.',\n  qr_url: data.qr_url || null,\n  pdf_url: data.pdf_url || null\n} }];"
+      }
+    },
+    {
+      "id": "node-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2060,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { text: $json.text, qr_url: $json.qr_url || null, pdf_url: $json.pdf_url || null } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "node-sticky",
+      "name": "SETUP",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        60
+      ],
+      "parameters": {
+        "content": "## AMICANA Chatbot — Groq\n\n**Variables requeridas** (Settings → Variables):\n- `GROQ_API_KEY` = clave de console.groq.com (gratis, sin tarjeta)\n- `CHATBOT_INTERNAL_KEY` = amicana-internal\n\n**Opcional**:\n- `FASTAPI_BASE_URL` = URL base de FastAPI. Default: `http://host.docker.internal:8000` (Docker Desktop). Producción: `https://api.amicana.com`.\n\nEl flow persiste sesiones en BD vía `/chatbot/session` (no usa staticData).\nActivar workflow con el toggle arriba a la derecha.",
+        "height": 220,
+        "width": 360,
+        "color": 4
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Session History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Session History": {
+      "main": [
+        [
+          {
+            "node": "Load Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Session API": {
+      "main": [
+        [
+          {
+            "node": "Hydrate Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hydrate Session": {
+      "main": [
+        [
+          {
+            "node": "Groq Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Intent": {
+      "main": [
+        [
+          {
+            "node": "Intent Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Switch": {
+      "main": [
+        [
+          {
+            "node": "Auth — Buscar Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Estado — Cuotas Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pagar — Crear Pago MP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirmar — Registrar Pago",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cerrar — Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fuera Scope — Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth — Buscar Alumno": {
+      "main": [
+        [
+          {
+            "node": "Auth — Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado — Cuotas Alumno": {
+      "main": [
+        [
+          {
+            "node": "Estado — Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagar — Crear Pago MP": {
+      "main": [
+        [
+          {
+            "node": "Pagar — Generar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagar — Generar PDF": {
+      "main": [
+        [
+          {
+            "node": "Pagar — Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar — Registrar Pago": {
+      "main": [
+        [
+          {
+            "node": "Confirmar — Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth — Format Response": {
+      "main": [
+        [
+          {
+            "node": "Save Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estado — Format Response": {
+      "main": [
+        [
+          {
+            "node": "Save Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagar — Format Response": {
+      "main": [
+        [
+          {
+            "node": "Save Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar — Format Response": {
+      "main": [
+        [
+          {
+            "node": "Save Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerrar — Format Response": {
+      "main": [
+        [
+          {
+            "node": "Save Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fuera Scope — Format Response": {
+      "main": [
+        [
+          {
+            "node": "Save Session API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session API": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Router": {
+      "main": [
+        [
+          {
+            "node": "Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "AMICANA"
+    },
+    {
+      "name": "chatbot"
+    },
+    {
+      "name": "groq"
+    }
+  ]
+}

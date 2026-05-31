@@ -1,0 +1,2926 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>AMICANA 2.0 — Panel Administrador</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Panel de administración AMICANA 2.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="estilos.css">
+    <style>
+        .btn-action { width: auto; padding: 10px var(--sp-5); }
+        .form-error {
+            display: block;
+            color: #c53030;
+            font-size: 12px;
+            margin-top: 4px;
+            min-height: 14px;
+        }
+        .form-control.invalid { border-color: #c53030; }
+        .nota-alumno {
+            background: #ebf8ff;
+            border-left: 3px solid #3182ce;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #2c5282;
+            margin-bottom: 14px;
+        }
+
+        .stat-card-simple {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 18px 20px;
+        }
+        .stat-card-simple .num {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a202c;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        .stat-card-simple .label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card-simple.warn { border-left: 4px solid #d97706; }
+        .stat-card-simple.danger { border-left: 4px solid #c53030; }
+        .stat-card-simple.ok { border-left: 4px solid #2f855a; }
+
+        .ficha-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-top: 14px;
+        }
+        .ficha-card h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            color: #1a202c;
+        }
+        .ficha-card .ficha-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px 24px;
+            margin-top: 12px;
+        }
+        .ficha-card .ficha-grid div small {
+            display: block;
+            font-size: 11px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ficha-card .ficha-grid div strong {
+            font-size: 14px;
+            color: #2d3748;
+        }
+        .ficha-cuotas {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .ficha-cuotas .chip {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        .ficha-cuotas .chip strong { color: #1a202c; }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+    <!-- TOP BAR -->
+    <header class="app-topbar">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menú">
+                <span></span><span></span><span></span>
+            </button>
+            <a class="topbar-brand" href="#">
+                AMICANA
+                <span class="topbar-brand-badge">2.0</span>
+            </a>
+        </div>
+        <div class="topbar-user">
+            <div class="topbar-user-info">
+                <div class="topbar-user-name" id="userName">—</div>
+                <div class="topbar-user-role" id="userRole">—</div>
+            </div>
+            <div class="topbar-avatar" id="userAvatar">?</div>
+            <button class="btn btn-danger btn-sm" onclick="logout()">Salir</button>
+        </div>
+    </header>
+
+    <!-- SIDEBAR -->
+    <nav class="app-sidebar" id="sidebar">
+        <div class="sidebar-section-label">Académico</div>
+        <a class="nav-item active" onclick="showSection('secInicio', this)">Inicio</a>
+        <a class="nav-item" data-testid="nav-alumnos" onclick="showSection('secAlumnos', this)">Alumnos</a>
+        <a class="nav-item" onclick="showSection('secCursos', this)">Cursos</a>
+        <a class="nav-item" onclick="showSection('secCalendario', this); cargarCalendario()">Calendario</a>
+
+        <div class="sidebar-section-label">Comunicación</div>
+        <a class="nav-item" onclick="showSection('secAvisos', this); cargarAvisosAdmin()">Avisos a alumnos</a>
+        <a class="nav-item" onclick="showSection('secComunicados', this); cargarComunicados()">Comunicados internos</a>
+
+        <div class="sidebar-section-label">Cuotas</div>
+        <a class="nav-item" onclick="showSection('secCuotas', this)">Asignar cuotas</a>
+        <a class="nav-item" onclick="showSection('secPagosMP', this); cargarPagos(); cargarPendientesVerificacion()">Links de pago</a>
+
+        <div class="sidebar-section-label">Gestión</div>
+        <a class="nav-item" onclick="showSection('secBuscar', this)">Buscar alumno</a>
+        <a class="nav-item" onclick="showSection('secReportes', this); cargarReporteActivo()">Reportes</a>
+        <a class="nav-item" onclick="showSection('secConfig', this); cargarConfiguracion()">Configuración</a>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="app-main">
+
+        <!-- ============ INICIO ============ -->
+        <div id="secInicio" class="section active">
+            <div class="page-header">
+                <h1 class="page-title">Panel administrativo</h1>
+                <p class="page-subtitle">Vista general del instituto</p>
+            </div>
+            <div class="dashboard-grid" id="dashStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+                <div class="stat-card-simple">
+                    <div class="num" id="dashTotalAlumnos">—</div>
+                    <div class="label">Alumnos activos</div>
+                </div>
+                <div class="stat-card-simple danger">
+                    <div class="num" id="dashConDeuda">—</div>
+                    <div class="label">Alumnos con deuda</div>
+                </div>
+                <div class="stat-card-simple warn">
+                    <div class="num" id="dashCuotasVenc">—</div>
+                    <div class="label">Cuotas vencidas</div>
+                </div>
+            </div>
+            <div class="card" style="margin-top:18px;">
+                <div class="card-header"><span class="card-title">Accesos rápidos</span></div>
+                <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary btn-sm" onclick="document.querySelector('[data-testid=nav-alumnos]').click()">Gestionar alumnos</button>
+                    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('.nav-item[onclick*=secCuotas]').click()">Asignar cuotas</button>
+                    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('.nav-item[onclick*=secCalendario]').click()">Cargar clase</button>
+                    <button class="btn btn-secondary btn-sm" onclick="document.querySelector('.nav-item[onclick*=secAvisos]').click()">Publicar aviso</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ ALUMNOS ============ -->
+        <div id="secAlumnos" class="section">
+            <div class="page-header flex-between flex-wrap" style="gap:12px;">
+                <div>
+                    <h1 class="page-title">Alumnos</h1>
+                    <p class="page-subtitle">Gestión de alumnos del instituto</p>
+                </div>
+                <button class="btn btn-primary btn-sm" data-testid="btn-nuevo-alumno" onclick="abrirModalAlumno()">
+                    Nuevo alumno
+                </button>
+            </div>
+            <div id="alumnosMsg"></div>
+
+            <div id="filtrosAlumnos" class="filter-group">
+                <div class="filter-row">
+                    <span class="filter-label">Estado</span>
+                    <div class="filter-buttons" id="filtroAlumnoEstado"></div>
+                </div>
+                <div class="filter-row">
+                    <span class="filter-label">Categoría</span>
+                    <div class="filter-buttons" id="filtroAlumnoCategoria"></div>
+                </div>
+                <div class="filter-row">
+                    <span class="filter-label">Modalidad</span>
+                    <div class="filter-buttons" id="filtroAlumnoModalidad"></div>
+                </div>
+                <div class="filter-row">
+                    <span class="filter-label">Curso</span>
+                    <div class="filter-buttons" id="filtroAlumnoCurso"></div>
+                </div>
+                <div class="filter-row" style="margin-top:6px;">
+                    <span class="filter-label"></span>
+                    <button class="filter-btn" id="btnLimpiarFiltrosAlumnos" onclick="limpiarFiltrosAlumnos()" style="font-size:12px;color:#ef4444;border-color:#fca5a5;display:none;">✕ Limpiar filtros</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header flex-between" style="gap:12px;flex-wrap:wrap;">
+                    <span class="card-title">Listado de alumnos <small id="alumnosCountLabel" style="color:#94a3b8;font-weight:400;"></small></span>
+                    <div class="flex" style="gap:10px;flex-wrap:wrap;">
+                        <div class="search-bar">
+                            <input type="text" id="searchAlumno" placeholder="Buscar por nombre, email o DNI..."
+                                   oninput="filtrarAlumnos()">
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="cargarAlumnos()">Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Apellido y nombre</th>
+                                <th>Email</th>
+                                <th>DNI</th>
+                                <th>Teléfono</th>
+                                <th>Curso</th>
+                                <th>Estado</th>
+                                <th>Modalidad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaAlumnos" data-testid="tabla-alumnos">
+                            <tr><td colspan="8" class="table-empty">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div id="alumnosPagination" style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--gray-100);font-size:13px;color:#64748b;"></div>
+            </div>
+        </div>
+
+        <!-- ============ CURSOS ============ -->
+        <div id="secCursos" class="section">
+            <div class="page-header flex-between flex-wrap" style="gap:12px;">
+                <div>
+                    <h1 class="page-title">Cursos</h1>
+                    <p class="page-subtitle">Administración de cursos y aranceles</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="abrirModalCurso()">Nuevo curso</button>
+            </div>
+            <div id="cursosMsg"></div>
+
+            <div id="filtrosCursos" class="filter-group">
+                <div class="filter-row">
+                    <span class="filter-label">Categoría</span>
+                    <div class="filter-buttons" id="filtroCursoCategoria"></div>
+                </div>
+                <div class="filter-row">
+                    <span class="filter-label">Modalidad</span>
+                    <div class="filter-buttons" id="filtroCursoModalidad"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span class="card-title">Listado de cursos</span>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarCursos()">Actualizar</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Descripción</th>
+                                <th>Monto cuota</th>
+                                <th>Modalidad</th>
+                                <th>Categoría</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaCursos">
+                            <tr><td colspan="7" class="table-empty">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ CALENDARIO ============ -->
+        <div id="secCalendario" class="section">
+            <div class="page-header flex-between flex-wrap" style="gap:12px;">
+                <div>
+                    <h1 class="page-title">Calendario</h1>
+                    <p class="page-subtitle">Clases por curso y eventos institucionales</p>
+                </div>
+                <div class="flex" style="gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-primary btn-sm" id="btnNuevaClase" onclick="abrirModalClase()">Nueva clase</button>
+                    <button class="btn btn-primary btn-sm" id="btnNuevoEvento" onclick="abrirModalEvento()" style="display:none;">Nuevo evento</button>
+                </div>
+            </div>
+            <div id="calendarioMsg"></div>
+
+            <div class="filter-group" style="padding:8px 12px;">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-tab="clases" onclick="cambiarTabCalendario('clases')">Clases</button>
+                    <button class="filter-btn" data-tab="eventos" onclick="cambiarTabCalendario('eventos')">Eventos</button>
+                </div>
+            </div>
+
+            <div id="tabCalendarioClases">
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <span class="card-title">Próximas clases</span>
+                        <button class="btn btn-secondary btn-sm" onclick="cargarCalendario()">Actualizar</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Curso</th>
+                                    <th>Título</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaCalendario">
+                                <tr><td colspan="5" class="table-empty">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabCalendarioEventos" style="display:none;">
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <span class="card-title">Eventos institucionales</span>
+                        <button class="btn btn-secondary btn-sm" onclick="cargarEventos()">Actualizar</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Título</th>
+                                    <th>Tipo</th>
+                                    <th>Visible alumno</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaEventos">
+                                <tr><td colspan="5" class="table-empty">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ AVISOS A ALUMNOS ============ -->
+        <div id="secAvisos" class="section">
+            <div class="page-header flex-between flex-wrap" style="gap:12px;">
+                <div>
+                    <h1 class="page-title">Avisos a alumnos</h1>
+                    <p class="page-subtitle">Comunicaciones visibles en el panel del alumno</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="abrirModalAviso()">Nuevo aviso</button>
+            </div>
+            <div id="avisosMsg"></div>
+
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span class="card-title">Avisos publicados</span>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarAvisosAdmin()">Actualizar</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Contenido</th>
+                                <th>Importante</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaAvisos">
+                            <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ COMUNICADOS INTERNOS ============ -->
+        <div id="secComunicados" class="section">
+            <div class="page-header flex-between flex-wrap" style="gap:12px;">
+                <div>
+                    <h1 class="page-title">Comunicados internos</h1>
+                    <p class="page-subtitle">Solo visibles para el equipo administrativo</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="abrirModalComunicado()">Nuevo comunicado</button>
+            </div>
+            <div id="comunicadosMsg"></div>
+
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span class="card-title">Listado de comunicados</span>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarComunicados()">Actualizar</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Asunto</th>
+                                <th>Destinatarios</th>
+                                <th>Autor</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaComunicados">
+                            <tr><td colspan="5" class="table-empty">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ CUOTAS ============ -->
+        <div id="secCuotas" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Asignar cuotas</h1>
+                <p class="page-subtitle">Asigná cuotas individuales o en bloque a un alumno</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span class="card-title">Nueva cuota</span></div>
+                <div class="card-body">
+                    <div class="form-row form-row-2">
+                        <div class="form-group mb-0">
+                            <label class="form-label">Alumno</label>
+                            <select class="form-control" id="selectAlumno">
+                                <option value="">Cargando alumnos...</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Curso (opcional — auto-completa monto)</label>
+                            <select class="form-control" id="selectCursoMonto" onchange="autoMonto()">
+                                <option value="">Sin selección</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row form-row-3 mt-16">
+                        <div class="form-group mb-0">
+                            <label class="form-label">Concepto</label>
+                            <input class="form-control" type="text" id="cuotaConcepto"
+                                   placeholder="Ej: Cuota Marzo 2026">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Monto ($)</label>
+                            <input class="form-control" type="number" id="cuotaMonto"
+                                   placeholder="0.00" step="0.01" min="1">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Vencimiento</label>
+                            <input class="form-control" type="date" id="cuotaVencimiento">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary mt-16" style="max-width:220px;"
+                            onclick="asignarCuota()">
+                        Asignar cuota
+                    </button>
+                    <div id="resultadoAsignar"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:18px;">
+                <div class="card-header">
+                    <span class="card-title">Asignación en bloque (por rango de meses)</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-row form-row-2">
+                        <div class="form-group mb-0">
+                            <label class="form-label">Alumno</label>
+                            <select class="form-control" id="bulkAlumno">
+                                <option value="">Seleccionar alumno...</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Curso (auto-completa monto)</label>
+                            <select class="form-control" id="bulkCurso" onchange="autoBulkMonto()">
+                                <option value="">Sin selección</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row form-row-3 mt-16">
+                        <div class="form-group mb-0">
+                            <label class="form-label">Monto por cuota ($)</label>
+                            <input class="form-control" type="number" id="bulkMonto"
+                                   placeholder="0.00" step="0.01" min="1">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Mes inicial</label>
+                            <div style="display:flex; gap:8px;">
+                                <select class="form-control" id="bulkDesdeMes" style="flex:2;"></select>
+                                <select class="form-control" id="bulkDesdeAnio" style="flex:1;"></select>
+                            </div>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Mes final</label>
+                            <div style="display:flex; gap:8px;">
+                                <select class="form-control" id="bulkHastaMes" style="flex:2;"></select>
+                                <select class="form-control" id="bulkHastaAnio" style="flex:1;"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary mt-16" style="max-width:240px;"
+                            onclick="asignarCuotasBulk()">
+                        Generar cuotas en bloque
+                    </button>
+                    <div id="resultadoBulk"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ LINKS DE PAGO ============ -->
+        <div id="secPagosMP" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Links de pago</h1>
+                <p class="page-subtitle">Generación de links de cobro y verificación de pagos manuales</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span class="card-title">Generar link de pago</span></div>
+                <div class="card-body" style="max-width:480px;">
+                    <div class="form-group">
+                        <label class="form-label">Concepto</label>
+                        <input class="form-control" type="text" id="pagoTitulo"
+                               placeholder="Ej: Inscripción 2026">
+                    </div>
+                    <div class="form-row form-row-2">
+                        <div class="form-group mb-0">
+                            <label class="form-label">Monto ($)</label>
+                            <input class="form-control" type="number" id="pagoMonto"
+                                   placeholder="0.00" step="0.01" min="1">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label">Cantidad</label>
+                            <input class="form-control" type="number" id="pagoCantidad"
+                                   value="1" min="1">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mt-16" onclick="crearPagoMP()">
+                        Generar link de pago
+                    </button>
+                    <div id="resultadoPagoMP"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span class="card-title">Historial de pagos</span>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarPagos()">Actualizar</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Concepto</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr>
+                        </thead>
+                        <tbody id="listaPagos">
+                            <tr><td colspan="4" class="table-empty">Sin pagos registrados</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span class="card-title">Pagos pendientes de verificación</span>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarPendientesVerificacion()">Actualizar</button>
+                </div>
+                <div id="pendienteVerifMsg"></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Alumno</th><th>Concepto</th><th>Monto</th><th>Comprobante</th><th>Vencimiento</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody id="listaPendientesVerif">
+                            <tr><td colspan="6" class="table-empty">Sin pagos pendientes de verificación</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ BUSCAR ALUMNO ============ -->
+        <div id="secBuscar" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Buscar alumno</h1>
+                <p class="page-subtitle">Por apellido, nombre o DNI</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+                    <div class="form-group mb-0" style="flex:1;min-width:240px;">
+                        <label class="form-label">Término de búsqueda</label>
+                        <input class="form-control" type="text" id="buscarQ"
+                               placeholder="Ej: Pérez, Juan, 30123456"
+                               onkeydown="if(event.key==='Enter') buscarAlumno()">
+                    </div>
+                    <button class="btn btn-primary" onclick="buscarAlumno()">Buscar</button>
+                </div>
+            </div>
+
+            <div id="resultadoBuscar"></div>
+        </div>
+
+        <!-- ============ REPORTES ============ -->
+        <div id="secReportes" class="section">
+            <div class="page-header flex-between">
+                <div>
+                    <h1 class="page-title">Reportes</h1>
+                    <p class="page-subtitle">Métricas básicas del instituto</p>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="cargarReporteActivo()">Actualizar</button>
+            </div>
+
+            <div class="filter-group" style="padding:8px 12px;">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-tab="resumen"  onclick="cambiarTabReportes('resumen')">Resumen</button>
+                    <button class="filter-btn" data-tab="deudores"        onclick="cambiarTabReportes('deudores')">Deudores</button>
+                    <button class="filter-btn" data-tab="cuotas-vencidas" onclick="cambiarTabReportes('cuotas-vencidas')">Cuotas vencidas</button>
+                </div>
+            </div>
+
+            <div id="tabReporteResumen">
+                <div id="reportesContent">
+                    <div class="alert alert-info">Cargando reportes...</div>
+                </div>
+            </div>
+
+            <div id="tabReporteDeudores" style="display:none;">
+                <div class="card">
+                    <div class="card-header flex-between" style="gap:12px;flex-wrap:wrap;">
+                        <span class="card-title">Alumnos con deuda</span>
+                        <select class="form-control" id="filtroDeudoresEstado" style="max-width:240px;" onchange="cargarDeudores()">
+                            <option value="vencida">Solo vencidas</option>
+                            <option value="pendiente">Pendientes</option>
+                            <option value="pendiente_verificacion">Pendientes de verificación</option>
+                            <option value="todas">Todas</option>
+                        </select>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Alumno</th>
+                                    <th>DNI</th>
+                                    <th>Curso</th>
+                                    <th>Cuotas</th>
+                                    <th>Deuda total</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaDeudores">
+                                <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabReporteCuotasVencidas" style="display:none;">
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <span class="card-title">Cuotas vencidas</span>
+                        <button class="btn btn-secondary btn-sm" onclick="cargarCuotasVencidas()">Actualizar</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Vencimiento</th>
+                                    <th>Días</th>
+                                    <th>Alumno</th>
+                                    <th>Curso</th>
+                                    <th>Concepto</th>
+                                    <th>Monto</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaCuotasVencidas">
+                                <tr><td colspan="7" class="table-empty">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ CONFIGURACIÓN ============ -->
+        <div id="secConfig" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Configuración</h1>
+                <p class="page-subtitle">Cuenta, datos del instituto y comportamiento del sistema</p>
+            </div>
+
+            <div id="configMsg"></div>
+
+            <div class="card">
+                <div class="card-header"><span class="card-title">Mi cuenta</span></div>
+                <div class="card-body">
+                    <p style="font-size:13px;color:#4a5568;margin-bottom:6px;">
+                        <strong>Email:</strong> <span id="cfgEmail">—</span>
+                    </p>
+                    <p style="font-size:13px;color:#4a5568;margin-bottom:10px;">
+                        <strong>Rol:</strong> <span id="cfgRol">—</span>
+                    </p>
+                    <button class="btn btn-secondary btn-sm" onclick="abrirModalCambioPassword()">Cambiar contraseña</button>
+                </div>
+            </div>
+
+            <div class="card" id="cardDatosInstituto" style="display:none;">
+                <div class="card-header"><span class="card-title">Datos del instituto</span></div>
+                <div class="card-body">
+                    <div class="form-row form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input class="form-control" type="text" id="cfgInstNombre">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email institucional</label>
+                            <input class="form-control" type="email" id="cfgInstEmail">
+                        </div>
+                    </div>
+                    <div class="form-row form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono</label>
+                            <input class="form-control" type="text" id="cfgInstTelefono">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dirección</label>
+                            <input class="form-control" type="text" id="cfgInstDireccion">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="guardarConfigInstituto()">Guardar datos</button>
+                </div>
+            </div>
+
+            <div class="card" id="cardCuotasConfig" style="display:none;">
+                <div class="card-header"><span class="card-title">Cuotas</span></div>
+                <div class="card-body">
+                    <div class="form-row form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">Día de vencimiento (1–28)</label>
+                            <input class="form-control" type="number" id="cfgCuotaDiaVenc" min="1" max="28">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Recargo por mora (%)</label>
+                            <input class="form-control" type="number" id="cfgCuotaRecargo" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="guardarConfigCuotas()">Guardar cuotas</button>
+                </div>
+            </div>
+
+            <div class="card" id="cardAplicacionConfig" style="display:none;">
+                <div class="card-header"><span class="card-title">Aplicación</span></div>
+                <div class="card-body">
+                    <div class="form-row form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">Chatbot habilitado</label>
+                            <select class="form-control" id="cfgChatbotHab">
+                                <option value="true">Sí</option>
+                                <option value="false">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Avisos visibles (días)</label>
+                            <input class="form-control" type="number" id="cfgAvisosDias" min="1" max="365">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="guardarConfigApp()">Guardar aplicación</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ============ MODAL: ALUMNO ============ -->
+<div class="modal-overlay" id="modalAlumno">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalAlumnoTitulo">Nuevo alumno</span>
+            <button class="modal-close" onclick="cerrarModal('modalAlumno')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="alumnoEditId">
+            <div class="nota-alumno" id="notaAltaAlumno">
+                El alumno se registra con su <strong>email</strong> en la pantalla de login para crear su contraseña. No se asigna password desde acá.
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Nombre</label>
+                    <input class="form-control" type="text" id="alumnoNombre" data-testid="alumno-nombre" placeholder="Ej: Juan">
+                    <small class="form-error" id="errAlumnoNombre"></small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Apellido</label>
+                    <input class="form-control" type="text" id="alumnoApellido" placeholder="Ej: Pérez">
+                    <small class="form-error" id="errAlumnoApellido"></small>
+                </div>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input class="form-control" type="email" id="alumnoEmail" data-testid="alumno-email" placeholder="correo@ejemplo.com">
+                    <small class="form-error" id="errAlumnoEmail"></small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">DNI</label>
+                    <input class="form-control" type="text" id="alumnoDNI" data-testid="alumno-dni" placeholder="Ej: 30123456">
+                    <small class="form-error" id="errAlumnoDNI"></small>
+                </div>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Teléfono</label>
+                    <input class="form-control" type="text" id="alumnoTelefono" placeholder="Ej: 3815550000">
+                    <small class="form-error" id="errAlumnoTelefono"></small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Curso</label>
+                    <select class="form-control" id="alumnoCurso">
+                        <option value="">Seleccionar curso...</option>
+                    </select>
+                    <small class="form-error" id="errAlumnoCurso"></small>
+                </div>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Modalidad del alumno</label>
+                    <select class="form-control" id="alumnoModalidad">
+                        <option value="">Heredar del curso</option>
+                        <option value="presencial">Presencial</option>
+                        <option value="virtual">Virtual</option>
+                        <option value="hibrido">Híbrido</option>
+                    </select>
+                    <small style="color:#64748b;">Si dejás "Heredar", se usa la modalidad del curso seleccionado.</small>
+                </div>
+            </div>
+            <div id="modalAlumnoMsg" data-testid="modal-alumno-msg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalAlumno')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarAlumno" data-testid="btn-guardar-alumno" onclick="guardarAlumno()">
+                Guardar alumno
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: CURSO ============ -->
+<div class="modal-overlay" id="modalCurso">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalCursoTitulo">Nuevo curso</span>
+            <button class="modal-close" onclick="cerrarModal('modalCurso')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="cursoEditId">
+            <div class="form-group">
+                <label class="form-label">Nombre del curso</label>
+                <input class="form-control" type="text" id="cursoNombre" placeholder="Ej: Inglés B1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descripción</label>
+                <input class="form-control" type="text" id="cursoDesc"
+                       placeholder="Ej: Nivel intermedio, metodología comunicativa">
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Monto de la cuota ($)</label>
+                    <input class="form-control" type="number" id="cursoMonto"
+                           placeholder="0.00" step="0.01" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Estado</label>
+                    <select class="form-control" id="cursoActivo">
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Modalidad</label>
+                    <select class="form-control" id="cursoModalidad">
+                        <option value="presencial">Presencial</option>
+                        <option value="virtual">Virtual</option>
+                        <option value="hibrido">Híbrido</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoría</label>
+                    <select class="form-control" id="cursoCategoria">
+                        <option value="regular">Regular</option>
+                        <option value="acelerado">Acelerado</option>
+                        <option value="especial">Especial</option>
+                        <option value="intensivo">Intensivo</option>
+                    </select>
+                </div>
+            </div>
+            <div id="modalCursoMsg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalCurso')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarCurso" onclick="guardarCurso()">Guardar curso</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: CLASE CALENDARIO ============ -->
+<div class="modal-overlay" id="modalClase">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalClaseTitulo">Nueva clase</span>
+            <button class="modal-close" onclick="cerrarModal('modalClase')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="claseEditId">
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Curso</label>
+                    <select class="form-control" id="claseCurso">
+                        <option value="">Seleccionar curso...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Título</label>
+                    <input class="form-control" type="text" id="claseTitulo" placeholder="Ej: Unit 5 — Past Simple">
+                </div>
+            </div>
+            <div class="form-row form-row-3">
+                <div class="form-group">
+                    <label class="form-label">Fecha</label>
+                    <input class="form-control" type="date" id="claseFecha">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hora inicio</label>
+                    <input class="form-control" type="time" id="claseHoraIni">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hora fin</label>
+                    <input class="form-control" type="time" id="claseHoraFin">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descripción (opcional)</label>
+                <textarea class="form-control" id="claseDesc" rows="2" placeholder="Notas o material a traer"></textarea>
+            </div>
+            <div id="modalClaseMsg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalClase')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarClase" onclick="guardarClase()">Guardar clase</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: AVISO ============ -->
+<div class="modal-overlay" id="modalAviso">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalAvisoTitulo">Nuevo aviso</span>
+            <button class="modal-close" onclick="cerrarModal('modalAviso')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="avisoEditId">
+            <div class="form-group">
+                <label class="form-label">Título</label>
+                <input class="form-control" type="text" id="avisoTitulo" placeholder="Ej: Suspensión de clases por feriado">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Contenido</label>
+                <textarea class="form-control" id="avisoContenido" rows="5"
+                          placeholder="Texto del aviso que verá el alumno"></textarea>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Importante</label>
+                    <select class="form-control" id="avisoImportante">
+                        <option value="0">No</option>
+                        <option value="1">Sí (resaltado)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="avisoActivoGroup" style="display:none;">
+                    <label class="form-label">Estado</label>
+                    <select class="form-control" id="avisoActivo">
+                        <option value="1">Activo</option>
+                        <option value="0">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+            <div id="modalAvisoMsg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalAviso')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarAviso" onclick="guardarAviso()">Guardar aviso</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: COMUNICADO INTERNO ============ -->
+<div class="modal-overlay" id="modalComunicado">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">Nuevo comunicado interno</span>
+            <button class="modal-close" onclick="cerrarModal('modalComunicado')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="nota-alumno">Los comunicados internos no son visibles para los alumnos.</div>
+            <div class="form-group">
+                <label class="form-label">Asunto</label>
+                <input class="form-control" type="text" id="comAsunto" placeholder="Ej: Reunión de profesores 15/05">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Cuerpo</label>
+                <textarea class="form-control" id="comCuerpo" rows="5"
+                          placeholder="Detalles del comunicado"></textarea>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Destinatarios</label>
+                    <select class="form-control" id="comDestinatarios" onchange="toggleComCurso()">
+                        <option value="todos">Todo el staff</option>
+                        <option value="curso">Por curso</option>
+                    </select>
+                </div>
+                <div class="form-group" id="comCursoGroup" style="display:none;">
+                    <label class="form-label">Curso</label>
+                    <select class="form-control" id="comCurso">
+                        <option value="">Seleccionar curso...</option>
+                    </select>
+                </div>
+            </div>
+            <div id="modalComunicadoMsg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalComunicado')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarComunicado" onclick="guardarComunicado()">Guardar comunicado</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: EVENTO INSTITUCIONAL ============ -->
+<div class="modal-overlay" id="modalEvento">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalEventoTitulo">Nuevo evento</span>
+            <button class="modal-close" onclick="cerrarModal('modalEvento')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eventoEditId">
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Título</label>
+                    <input class="form-control" type="text" id="eventoTitulo" placeholder="Ej: Día del Maestro">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-control" id="eventoTipo">
+                        <option value="evento">Evento</option>
+                        <option value="feriado">Feriado</option>
+                        <option value="conmemorativo">Conmemorativo</option>
+                        <option value="intercambio">Intercambio</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Fecha inicio</label>
+                    <input class="form-control" type="date" id="eventoFechaIni">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fecha fin (opcional)</label>
+                    <input class="form-control" type="date" id="eventoFechaFin">
+                </div>
+            </div>
+            <div class="form-row form-row-3">
+                <div class="form-group">
+                    <label class="form-label">Hora inicio</label>
+                    <input class="form-control" type="time" id="eventoHoraIni">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hora fin</label>
+                    <input class="form-control" type="time" id="eventoHoraFin">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Todo el día</label>
+                    <select class="form-control" id="eventoTodoElDia" onchange="toggleEventoHoras()">
+                        <option value="0">No</option>
+                        <option value="1">Sí</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Visible para alumnos</label>
+                    <select class="form-control" id="eventoVisibleAlumno">
+                        <option value="1">Sí</option>
+                        <option value="0">No (interno)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descripción (opcional)</label>
+                <textarea class="form-control" id="eventoDesc" rows="2" placeholder="Detalles del evento"></textarea>
+            </div>
+            <div id="modalEventoMsg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalEvento')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarEvento" onclick="guardarEvento()">Guardar evento</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: CAMBIAR CONTRASEÑA ============ -->
+<div class="modal-overlay" id="modalCambioPassword">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+            <span class="modal-title">Cambiar contraseña</span>
+            <button class="modal-close" onclick="cerrarModal('modalCambioPassword')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Contraseña actual</label>
+                <input class="form-control" type="password" id="pwdActual" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Contraseña nueva</label>
+                <input class="form-control" type="password" id="pwdNueva" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Repetir contraseña nueva</label>
+                <input class="form-control" type="password" id="pwdNueva2" autocomplete="new-password">
+            </div>
+            <div id="modalPasswordMsg"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalCambioPassword')">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardarPassword" onclick="guardarPassword()">Cambiar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MODAL: CONFIRMAR ELIMINAR ============ -->
+<div class="modal-overlay" id="modalConfirmar">
+    <div class="modal" style="max-width:380px;">
+        <div class="modal-header">
+            <span class="modal-title">Confirmar eliminación</span>
+            <button class="modal-close" onclick="cerrarModal('modalConfirmar')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:14px;color:var(--gray-600);" id="confirmarMsg">
+                ¿Estás seguro de que querés eliminar este registro?
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalConfirmar')">Cancelar</button>
+            <button class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===============================================================
+//  STATE & TOKEN
+// ===============================================================
+
+let miRol = '';
+let cursosCache = [];
+let alumnosCache = [];
+let avisosCache = [];
+let eventosCache = [];
+let configCache = {};
+
+const filtroCursos  = { categoria: '', modalidad: '' };
+const filtroAlumnos = { categoria: '', modalidad: '', curso_id: '', estado: '' };
+const alumnosPag   = { page: 1, perPage: 25, total: 0 };
+const ESTADO_LABEL = { '': 'Todos', activo: 'Activo', pendiente: 'Pendiente', sin_curso: 'Sin curso' };
+
+const MODALIDAD_LABEL = { presencial: 'Presencial', virtual: 'Virtual', hibrido: 'Híbrido' };
+const CATEGORIA_LABEL = { regular: 'Regular', acelerado: 'Acelerado', especial: 'Especial', intensivo: 'Intensivo' };
+const TIPO_EVENTO_LABEL = {
+    evento: 'Evento', feriado: 'Feriado',
+    conmemorativo: 'Conmemorativo', intercambio: 'Intercambio', otro: 'Otro',
+};
+
+function badgeModalidad(m) {
+    if (!m) return '<span class="badge">—</span>';
+    return `<span class="badge badge-mod-${m}">${MODALIDAD_LABEL[m] || m}</span>`;
+}
+function badgeCategoria(c) {
+    if (!c) return '<span class="badge">—</span>';
+    return `<span class="badge badge-cat-${c}">${CATEGORIA_LABEL[c] || c}</span>`;
+}
+function badgeTipoEvento(t) {
+    if (!t) return '<span class="badge">—</span>';
+    return `<span class="badge badge-evt-${t}">${TIPO_EVENTO_LABEL[t] || t}</span>`;
+}
+
+const TOKEN_KEY = 'token';
+function readToken() {
+    let t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) {
+        const legacy = localStorage.getItem(TOKEN_KEY);
+        if (legacy) {
+            sessionStorage.setItem(TOKEN_KEY, legacy);
+            localStorage.removeItem(TOKEN_KEY);
+            t = legacy;
+        }
+    }
+    return t;
+}
+function clearToken() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+}
+
+window.addEventListener('load', () => {
+    const token = readToken();
+    if (!token) { window.location.href = 'index.html'; return; }
+    try {
+        const p = JSON.parse(atob(token.split('.')[1]));
+        if (p.exp * 1000 < Date.now()) { logout(); return; }
+        miRol = p.rol;
+        if (miRol !== 'admin' && miRol !== 'administrativo') {
+            window.location.href = 'index.html'; return;
+        }
+        document.getElementById('userName').textContent = p.sub;
+        document.getElementById('userRole').textContent = miRol;
+        document.getElementById('userAvatar').textContent = p.sub.charAt(0).toUpperCase();
+        document.getElementById('cfgEmail').textContent = p.sub;
+        document.getElementById('cfgRol').textContent = miRol;
+        cargarAlumnos();
+        cargarCursos();
+        cargarReportes();
+    } catch { logout(); }
+});
+
+function logout() {
+    clearToken();
+    window.location.href = 'index.html';
+}
+
+// ===============================================================
+//  NAV
+// ===============================================================
+
+function showSection(id, el) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (el) el.classList.add('active');
+    document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===============================================================
+//  AUTH FETCH
+// ===============================================================
+
+async function api(url, opts = {}) {
+    const token = readToken();
+    if (!opts.headers) opts.headers = {};
+    if (!(opts.body instanceof FormData)) {
+        opts.headers['Content-Type'] = 'application/json';
+    }
+    opts.headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(url, opts);
+    if (res.status === 401) logout();
+    return res;
+}
+
+function badge(estado) {
+    const map = {
+        pendiente: 'badge-pendiente', vencida: 'badge-vencida',
+        pagada: 'badge-pagada', aprobado: 'badge-aprobado',
+        rechazado: 'badge-rechazado', activo: 'badge-activo', inactivo: 'badge-inactivo',
+        pendiente_verificacion: 'badge-verificacion'
+    };
+    const cls = map[estado?.toLowerCase()] || 'badge-pendiente';
+    return `<span class="badge ${cls}">${estado || '—'}</span>`;
+}
+
+function alert_(text, type = 'error') {
+    return `<div class="alert alert-${type}">${escapeHtml(text)}</div>`;
+}
+function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<div class="alert alert-${type}" style="margin-top:10px;">${escapeHtml(text)}</div>`;
+}
+function clearMsg(id) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+}
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function formatErrorDetail(detail) {
+    if (!detail) return null;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+        return detail.map(e => {
+            const campo = Array.isArray(e.loc) ? e.loc.slice(1).join('.') : '';
+            return campo ? `${campo}: ${e.msg}` : e.msg;
+        }).join(' | ');
+    }
+    if (typeof detail === 'object' && detail.mensaje) return detail.mensaje;
+    return JSON.stringify(detail);
+}
+
+// ===============================================================
+//  CURSOS
+// ===============================================================
+
+async function cargarCursos() {
+    try {
+        const r = await api('/cursos');
+        const d = await r.json();
+        if (!r.ok) {
+            document.getElementById('tablaCursos').innerHTML =
+                `<tr><td colspan="7" class="table-empty">${d.detail || 'Error'}</td></tr>`;
+            return;
+        }
+        cursosCache = d.cursos || [];
+        renderFiltrosCursos();
+        renderCursos(aplicarFiltrosCursos(cursosCache));
+        poblarSelectCursos();
+        renderFiltrosAlumnosCurso();
+    } catch (e) {
+        document.getElementById('tablaCursos').innerHTML =
+            `<tr><td colspan="7" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function renderCursos(lista) {
+    const tbody = document.getElementById('tablaCursos');
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Sin cursos para los filtros aplicados</td></tr>';
+        return;
+    }
+    tbody.innerHTML = lista.map(c => `
+        <tr>
+            <td><strong>${escapeHtml(c.nombre)}</strong></td>
+            <td>${escapeHtml(c.descripcion || '—')}</td>
+            <td><strong>$${parseFloat(c.monto_cuota||0).toFixed(2)}</strong></td>
+            <td>${badgeModalidad(c.modalidad)}</td>
+            <td>${badgeCategoria(c.categoria)}</td>
+            <td>${badge(c.activo ? 'activo' : 'inactivo')}</td>
+            <td>
+                <div class="flex" style="gap:6px;">
+                    <button class="btn btn-secondary btn-sm" onclick="editarCurso(${c.id})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarCurso(${c.id}, ${JSON.stringify(c.nombre)})">Eliminar</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function aplicarFiltrosCursos(lista) {
+    return lista.filter(c => {
+        if (filtroCursos.categoria && c.categoria !== filtroCursos.categoria) return false;
+        if (filtroCursos.modalidad && c.modalidad !== filtroCursos.modalidad) return false;
+        return true;
+    });
+}
+
+function renderFiltrosCursos() {
+    const cats = ['', 'regular', 'acelerado', 'especial', 'intensivo'];
+    const mods = ['', 'presencial', 'virtual', 'hibrido'];
+    const elCat = document.getElementById('filtroCursoCategoria');
+    const elMod = document.getElementById('filtroCursoModalidad');
+    if (!elCat || !elMod) return;
+    elCat.innerHTML = cats.map(v => {
+        const lbl = v ? CATEGORIA_LABEL[v] : 'Todas';
+        const active = filtroCursos.categoria === v ? 'active' : '';
+        return `<button class="filter-btn ${active}" onclick="setFiltroCurso('categoria', '${v}')">${lbl}</button>`;
+    }).join('');
+    elMod.innerHTML = mods.map(v => {
+        const lbl = v ? MODALIDAD_LABEL[v] : 'Todas';
+        const active = filtroCursos.modalidad === v ? 'active' : '';
+        return `<button class="filter-btn ${active}" onclick="setFiltroCurso('modalidad', '${v}')">${lbl}</button>`;
+    }).join('');
+}
+
+function setFiltroCurso(campo, valor) {
+    filtroCursos[campo] = valor;
+    renderFiltrosCursos();
+    renderCursos(aplicarFiltrosCursos(cursosCache));
+}
+
+function poblarSelectCursos() {
+    const selects = ['selectCursoMonto', 'bulkCurso', 'alumnoCurso', 'claseCurso', 'comCurso'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const prev = el.value;
+        const labelDefault = id === 'alumnoCurso' || id === 'claseCurso' || id === 'comCurso'
+            ? 'Seleccionar curso...' : 'Sin selección';
+        el.innerHTML = `<option value="">${labelDefault}</option>` +
+            cursosCache.filter(c => c.activo).map(c =>
+                `<option value="${c.id}" data-monto="${c.monto_cuota}">${escapeHtml(c.nombre)} — $${parseFloat(c.monto_cuota).toFixed(2)}</option>`
+            ).join('');
+        if (prev) el.value = prev;
+    });
+}
+
+function abrirModalCurso() {
+    document.getElementById('cursoEditId').value = '';
+    document.getElementById('cursoNombre').value = '';
+    document.getElementById('cursoDesc').value = '';
+    document.getElementById('cursoMonto').value = '';
+    document.getElementById('cursoActivo').value = '1';
+    document.getElementById('cursoModalidad').value = 'presencial';
+    document.getElementById('cursoCategoria').value = 'regular';
+    document.getElementById('modalCursoTitulo').textContent = 'Nuevo curso';
+    clearMsg('modalCursoMsg');
+    abrirModal('modalCurso');
+}
+
+function editarCurso(id) {
+    const c = cursosCache.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('cursoEditId').value = id;
+    document.getElementById('cursoNombre').value = c.nombre;
+    document.getElementById('cursoDesc').value = c.descripcion || '';
+    document.getElementById('cursoMonto').value = c.monto_cuota;
+    document.getElementById('cursoActivo').value = c.activo ? '1' : '0';
+    document.getElementById('cursoModalidad').value = c.modalidad || 'presencial';
+    document.getElementById('cursoCategoria').value = c.categoria || 'regular';
+    document.getElementById('modalCursoTitulo').textContent = 'Editar curso';
+    clearMsg('modalCursoMsg');
+    abrirModal('modalCurso');
+}
+
+async function guardarCurso() {
+    const id        = document.getElementById('cursoEditId').value;
+    const nombre    = document.getElementById('cursoNombre').value.trim();
+    const desc      = document.getElementById('cursoDesc').value.trim();
+    const monto     = parseFloat(document.getElementById('cursoMonto').value);
+    const activo    = document.getElementById('cursoActivo').value === '1';
+    const modalidad = document.getElementById('cursoModalidad').value;
+    const categoria = document.getElementById('cursoCategoria').value;
+    const btn       = document.getElementById('btnGuardarCurso');
+
+    if (!nombre || !monto) {
+        showMsg('modalCursoMsg', 'Nombre y monto son obligatorios', 'error'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const url    = id ? `/cursos/${id}` : '/cursos';
+        const method = id ? 'PUT' : 'POST';
+        const r = await api(url, {
+            method,
+            body: JSON.stringify({
+                nombre, descripcion: desc, monto_cuota: monto,
+                modalidad, categoria, activo,
+            }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+            cerrarModal('modalCurso');
+            cargarCursos();
+        } else {
+            showMsg('modalCursoMsg', formatErrorDetail(d.detail) || 'Error al guardar', 'error');
+        }
+    } catch (e) {
+        showMsg('modalCursoMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar curso';
+}
+
+function confirmarEliminarCurso(id, nombre) {
+    document.getElementById('confirmarMsg').textContent =
+        `¿Eliminar el curso "${nombre}"? Esta acción no se puede deshacer.`;
+    document.getElementById('btnConfirmarEliminar').onclick = async () => {
+        cerrarModal('modalConfirmar');
+        const r = await api(`/cursos/${id}`, { method: 'DELETE' });
+        if (r.ok) cargarCursos();
+        else { const d = await r.json(); showMsg('cursosMsg', d.detail || 'No se pudo eliminar', 'error'); }
+    };
+    abrirModal('modalConfirmar');
+}
+
+// ===============================================================
+//  ALUMNOS
+// ===============================================================
+
+async function cargarAlumnos() {
+    try {
+        const r = await api('/alumnos');
+        const d = await r.json();
+        if (!r.ok) {
+            document.getElementById('tablaAlumnos').innerHTML =
+                `<tr><td colspan="8" class="table-empty">${d.detail || 'Error'}</td></tr>`;
+            return;
+        }
+        alumnosCache = d.alumnos || [];
+        alumnosPag.total = alumnosCache.length;
+        alumnosPag.page = 1;
+        renderFiltrosAlumnos();
+        renderAlumnosFiltrados();
+        poblarSelectAlumnos();
+    } catch (e) {
+        document.getElementById('tablaAlumnos').innerHTML =
+            `<tr><td colspan="8" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function nombreCompleto(a) {
+    return [a.apellido, a.nombre].filter(Boolean).join(', ') || a.nombre || '—';
+}
+
+function modalidadEfectiva(a) {
+    return a.modalidad || a.modalidad_curso || null;
+}
+
+function estadoAlumno(a) {
+    if (!a.curso_id) return 'sin_curso';
+    if (a.registrado) return 'activo';
+    return 'pendiente';
+}
+
+function badgeEstado(estado) {
+    const map = {
+        activo: { bg: '#dcfce7', color: '#166534', label: 'Activo' },
+        pendiente: { bg: '#fef3c7', color: '#92400e', label: 'Pendiente' },
+        sin_curso: { bg: '#f1f5f9', color: '#475569', label: 'Sin curso' },
+    };
+    const s = map[estado] || map.pendiente;
+    return `<span class="badge" style="background:${s.bg};color:${s.color};">${s.label}</span>`;
+}
+
+function aplicarFiltrosAlumnos(lista) {
+    const q = (document.getElementById('searchAlumno')?.value || '').toLowerCase();
+    return lista.filter(a => {
+        if (filtroAlumnos.curso_id  && String(a.curso_id) !== String(filtroAlumnos.curso_id)) return false;
+        if (filtroAlumnos.modalidad && modalidadEfectiva(a) !== filtroAlumnos.modalidad) return false;
+        if (filtroAlumnos.categoria) {
+            const cat = a.categoria_curso ||
+                cursosCache.find(c => c.id === a.curso_id)?.categoria;
+            if (cat !== filtroAlumnos.categoria) return false;
+        }
+        if (filtroAlumnos.estado && estadoAlumno(a) !== filtroAlumnos.estado) return false;
+        if (q) {
+            const nc = nombreCompleto(a).toLowerCase();
+            if (!nc.includes(q) && !(a.email || '').toLowerCase().includes(q) && !(a.dni || '').toLowerCase().includes(q)) return false;
+        }
+        return true;
+    });
+}
+
+function renderAlumnosFiltrados() {
+    const filtered = aplicarFiltrosAlumnos(alumnosCache);
+    alumnosPag.total = filtered.length;
+    // Clamp page
+    const maxPage = Math.max(1, Math.ceil(filtered.length / alumnosPag.perPage));
+    if (alumnosPag.page > maxPage) alumnosPag.page = maxPage;
+    // Paginate
+    const start = (alumnosPag.page - 1) * alumnosPag.perPage;
+    const paged = filtered.slice(start, start + alumnosPag.perPage);
+    renderAlumnos(paged);
+    renderAlumnosPagination(filtered.length);
+    // Count label
+    const label = document.getElementById('alumnosCountLabel');
+    if (label) label.textContent = `(${filtered.length} alumno${filtered.length !== 1 ? 's' : ''})`;
+    // Show/hide clear button
+    actualizarBtnLimpiar();
+}
+
+function renderAlumnos(lista) {
+    const tbody = document.getElementById('tablaAlumnos');
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="table-empty">Sin alumnos para los filtros aplicados</td></tr>';
+        return;
+    }
+    tbody.innerHTML = lista.map(a => {
+        const curso = cursosCache.find(c => c.id === (a.curso_id || a.cursoId));
+        const mod = modalidadEfectiva(a);
+        const heredada = !a.modalidad && a.modalidad_curso;
+        const est = estadoAlumno(a);
+        return `
+        <tr>
+            <td><strong>${escapeHtml(nombreCompleto(a))}</strong></td>
+            <td><span style="color:var(--gray-600);font-size:12px;">${escapeHtml(a.email)}</span></td>
+            <td>${escapeHtml(a.dni || '—')}</td>
+            <td>${escapeHtml(a.telefono || '—')}</td>
+            <td>${escapeHtml(curso ? curso.nombre : (a.curso || '—'))}</td>
+            <td>${badgeEstado(est)}</td>
+            <td>${badgeModalidad(mod)}${heredada ? ' <small style="color:#94a3b8;">(curso)</small>' : ''}</td>
+            <td>
+                <div class="flex" style="gap:6px;">
+                    <button class="btn btn-secondary btn-sm" onclick="editarAlumno(${a.id})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarAlumno(${a.id}, ${JSON.stringify(nombreCompleto(a))})">Eliminar</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderAlumnosPagination(totalFiltered) {
+    const el = document.getElementById('alumnosPagination');
+    if (!el) return;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / alumnosPag.perPage));
+    if (totalFiltered <= alumnosPag.perPage) {
+        el.innerHTML = `<span>${totalFiltered} resultado${totalFiltered !== 1 ? 's' : ''}</span><span></span>`;
+        return;
+    }
+    const from = (alumnosPag.page - 1) * alumnosPag.perPage + 1;
+    const to = Math.min(alumnosPag.page * alumnosPag.perPage, totalFiltered);
+    el.innerHTML = `
+        <span>Mostrando ${from}–${to} de ${totalFiltered}</span>
+        <div class="flex" style="gap:6px;">
+            <button class="btn btn-secondary btn-sm" ${alumnosPag.page <= 1 ? 'disabled' : ''} onclick="cambiarPagAlumnos(${alumnosPag.page - 1})">← Anterior</button>
+            <span style="padding:6px 10px;font-weight:600;">${alumnosPag.page} / ${totalPages}</span>
+            <button class="btn btn-secondary btn-sm" ${alumnosPag.page >= totalPages ? 'disabled' : ''} onclick="cambiarPagAlumnos(${alumnosPag.page + 1})">Siguiente →</button>
+        </div>`;
+}
+
+function cambiarPagAlumnos(p) {
+    alumnosPag.page = p;
+    renderAlumnosFiltrados();
+}
+
+function renderFiltrosAlumnos() {
+    const estados = ['', 'activo', 'pendiente', 'sin_curso'];
+    const cats = ['', 'regular', 'acelerado', 'especial', 'intensivo'];
+    const mods = ['', 'presencial', 'virtual', 'hibrido'];
+
+    // Estado
+    const elEst = document.getElementById('filtroAlumnoEstado');
+    if (elEst) {
+        elEst.innerHTML = estados.map(v => {
+            const lbl = ESTADO_LABEL[v] || v;
+            const active = filtroAlumnos.estado === v ? 'active' : '';
+            return `<button class="filter-btn ${active}" onclick="setFiltroAlumno('estado', '${v}')">${lbl}</button>`;
+        }).join('');
+    }
+
+    const elCat = document.getElementById('filtroAlumnoCategoria');
+    const elMod = document.getElementById('filtroAlumnoModalidad');
+    if (!elCat || !elMod) return;
+    elCat.innerHTML = cats.map(v => {
+        const lbl = v ? CATEGORIA_LABEL[v] : 'Todas';
+        const active = filtroAlumnos.categoria === v ? 'active' : '';
+        return `<button class="filter-btn ${active}" onclick="setFiltroAlumno('categoria', '${v}')">${lbl}</button>`;
+    }).join('');
+    elMod.innerHTML = mods.map(v => {
+        const lbl = v ? MODALIDAD_LABEL[v] : 'Todas';
+        const active = filtroAlumnos.modalidad === v ? 'active' : '';
+        return `<button class="filter-btn ${active}" onclick="setFiltroAlumno('modalidad', '${v}')">${lbl}</button>`;
+    }).join('');
+    renderFiltrosAlumnosCurso();
+}
+
+function renderFiltrosAlumnosCurso() {
+    const el = document.getElementById('filtroAlumnoCurso');
+    if (!el) return;
+    let cursos = cursosCache.filter(c => c.activo);
+    if (filtroAlumnos.categoria) cursos = cursos.filter(c => c.categoria === filtroAlumnos.categoria);
+    if (filtroAlumnos.modalidad) cursos = cursos.filter(c => c.modalidad === filtroAlumnos.modalidad);
+    const opts = [{ id: '', nombre: 'Todos' }, ...cursos];
+    el.innerHTML = opts.map(c => {
+        const active = String(filtroAlumnos.curso_id) === String(c.id) ? 'active' : '';
+        return `<button class="filter-btn ${active}" onclick="setFiltroAlumno('curso_id', '${c.id}')">${escapeHtml(c.nombre)}</button>`;
+    }).join('');
+}
+
+function setFiltroAlumno(campo, valor) {
+    filtroAlumnos[campo] = valor;
+    if (campo === 'categoria' || campo === 'modalidad') {
+        const cursoSel = cursosCache.find(c => String(c.id) === String(filtroAlumnos.curso_id));
+        if (cursoSel) {
+            if (filtroAlumnos.categoria && cursoSel.categoria !== filtroAlumnos.categoria) filtroAlumnos.curso_id = '';
+            if (filtroAlumnos.modalidad && cursoSel.modalidad !== filtroAlumnos.modalidad) filtroAlumnos.curso_id = '';
+        }
+    }
+    alumnosPag.page = 1;
+    renderFiltrosAlumnos();
+    renderAlumnosFiltrados();
+}
+
+function limpiarFiltrosAlumnos() {
+    filtroAlumnos.categoria = '';
+    filtroAlumnos.modalidad = '';
+    filtroAlumnos.curso_id = '';
+    filtroAlumnos.estado = '';
+    const search = document.getElementById('searchAlumno');
+    if (search) search.value = '';
+    alumnosPag.page = 1;
+    renderFiltrosAlumnos();
+    renderAlumnosFiltrados();
+}
+
+function actualizarBtnLimpiar() {
+    const btn = document.getElementById('btnLimpiarFiltrosAlumnos');
+    if (!btn) return;
+    const hasFilters = filtroAlumnos.categoria || filtroAlumnos.modalidad || filtroAlumnos.curso_id || filtroAlumnos.estado || (document.getElementById('searchAlumno')?.value || '').trim();
+    btn.style.display = hasFilters ? '' : 'none';
+}
+
+function poblarSelectAlumnos() {
+    const selects = ['selectAlumno', 'bulkAlumno'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const prev = el.value;
+        el.innerHTML = '<option value="">Seleccionar alumno...</option>' +
+            alumnosCache.map(a =>
+                `<option value="${a.id}">${escapeHtml(nombreCompleto(a))} — ${escapeHtml(a.email)}</option>`
+            ).join('');
+        if (prev) el.value = prev;
+    });
+}
+
+function filtrarAlumnos() {
+    alumnosPag.page = 1;
+    renderAlumnosFiltrados();
+}
+
+function setFieldError(id, msg) {
+    document.getElementById(id).textContent = msg || '';
+    const inputId = id.replace(/^err/, '');
+    const inp = document.getElementById(inputId.charAt(0).toLowerCase() + inputId.slice(1));
+    if (inp) inp.classList.toggle('invalid', !!msg);
+}
+
+function clearAlumnoErrors() {
+    ['errAlumnoNombre','errAlumnoApellido','errAlumnoEmail',
+     'errAlumnoDNI','errAlumnoTelefono','errAlumnoCurso'].forEach(id => setFieldError(id, ''));
+}
+
+function abrirModalAlumno() {
+    document.getElementById('alumnoEditId').value = '';
+    ['alumnoNombre','alumnoApellido','alumnoEmail','alumnoDNI','alumnoTelefono'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('alumnoCurso').value = '';
+    document.getElementById('alumnoModalidad').value = '';
+    document.getElementById('notaAltaAlumno').style.display = 'block';
+    document.getElementById('modalAlumnoTitulo').textContent = 'Nuevo alumno';
+    clearMsg('modalAlumnoMsg');
+    clearAlumnoErrors();
+    poblarSelectCursos();
+    abrirModal('modalAlumno');
+}
+
+function editarAlumno(id) {
+    const a = alumnosCache.find(x => x.id === id);
+    if (!a) return;
+    document.getElementById('alumnoEditId').value = id;
+    document.getElementById('alumnoNombre').value = a.nombre || '';
+    document.getElementById('alumnoApellido').value = a.apellido || '';
+    document.getElementById('alumnoEmail').value = a.email || '';
+    document.getElementById('alumnoDNI').value = a.dni || '';
+    document.getElementById('alumnoTelefono').value = a.telefono || '';
+    document.getElementById('alumnoModalidad').value = a.modalidad || '';
+    document.getElementById('notaAltaAlumno').style.display = 'none';
+    document.getElementById('modalAlumnoTitulo').textContent = 'Editar alumno';
+    clearMsg('modalAlumnoMsg');
+    clearAlumnoErrors();
+    poblarSelectCursos();
+    document.getElementById('alumnoCurso').value = a.curso_id || '';
+    abrirModal('modalAlumno');
+}
+
+function validarAlumno({nombre, apellido, email, dni, telefono, cursoId}) {
+    let ok = true;
+    if (!nombre || nombre.length < 2)  { setFieldError('errAlumnoNombre', 'Mínimo 2 caracteres'); ok = false; }
+    else setFieldError('errAlumnoNombre', '');
+    if (!apellido || apellido.length < 2) { setFieldError('errAlumnoApellido', 'Mínimo 2 caracteres'); ok = false; }
+    else setFieldError('errAlumnoApellido', '');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFieldError('errAlumnoEmail', 'Email inválido'); ok = false; }
+    else setFieldError('errAlumnoEmail', '');
+    if (!/^\d{7,8}$/.test(dni)) { setFieldError('errAlumnoDNI', 'DNI: 7 u 8 dígitos numéricos'); ok = false; }
+    else setFieldError('errAlumnoDNI', '');
+    if (!/^\d{8,15}$/.test(telefono)) { setFieldError('errAlumnoTelefono', 'Teléfono: 8 a 15 dígitos numéricos'); ok = false; }
+    else setFieldError('errAlumnoTelefono', '');
+    if (!cursoId)  { setFieldError('errAlumnoCurso', 'Seleccioná un curso'); ok = false; }
+    else setFieldError('errAlumnoCurso', '');
+    return ok;
+}
+
+async function guardarAlumno() {
+    const id       = document.getElementById('alumnoEditId').value;
+    const nombre   = document.getElementById('alumnoNombre').value.trim();
+    const apellido = document.getElementById('alumnoApellido').value.trim();
+    const email    = document.getElementById('alumnoEmail').value.trim();
+    const dni      = document.getElementById('alumnoDNI').value.trim();
+    const telefono = document.getElementById('alumnoTelefono').value.trim();
+    const cursoId  = document.getElementById('alumnoCurso').value;
+    const btn      = document.getElementById('btnGuardarAlumno');
+
+    if (!validarAlumno({nombre, apellido, email, dni, telefono, cursoId})) return;
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const modalidad = document.getElementById('alumnoModalidad').value;
+        const body = { nombre, apellido, email, dni, telefono, curso_id: parseInt(cursoId) };
+        if (modalidad) body.modalidad = modalidad;
+        const url    = id ? `/alumnos/${id}` : '/alumnos';
+        const method = id ? 'PUT' : 'POST';
+        const r = await api(url, { method, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (r.ok) {
+            const msg = !id ? (d.mensaje || 'Alumno creado') : 'Alumno actualizado';
+            cerrarModal('modalAlumno');
+            cargarAlumnos();
+            showMsg('alumnosMsg', msg, 'success');
+        } else {
+            showMsg('modalAlumnoMsg', formatErrorDetail(d.detail) || 'Error al guardar', 'error');
+        }
+    } catch (e) {
+        showMsg('modalAlumnoMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar alumno';
+}
+
+function confirmarEliminarAlumno(id, nombre) {
+    document.getElementById('confirmarMsg').textContent =
+        `¿Eliminar al alumno "${nombre}" y todos sus datos asociados?`;
+    document.getElementById('btnConfirmarEliminar').onclick = async () => {
+        cerrarModal('modalConfirmar');
+        const r = await api(`/alumnos/${id}`, { method: 'DELETE' });
+        if (r.ok) cargarAlumnos();
+        else { const d = await r.json(); showMsg('alumnosMsg', d.detail || 'No se pudo eliminar', 'error'); }
+    };
+    abrirModal('modalConfirmar');
+}
+
+// ===============================================================
+//  CALENDARIO
+// ===============================================================
+
+async function cargarCalendario() {
+    try {
+        const r = await api('/calendario');
+        const d = await r.json();
+        const data = d.data || d;
+        const tbody = document.getElementById('tablaCalendario');
+        const clases = data.clases || [];
+        if (!clases.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin clases programadas</td></tr>';
+            return;
+        }
+        const recortar = (s) => (s || '').slice(0, 5);
+        tbody.innerHTML = clases.map(c => `
+            <tr>
+                <td>${escapeHtml(c.fecha)}</td>
+                <td>${recortar(c.hora_inicio)} – ${recortar(c.hora_fin)}</td>
+                <td>${escapeHtml(c.curso || '—')}</td>
+                <td><strong>${escapeHtml(c.titulo)}</strong>${c.descripcion ? `<br><small style="color:#718096;">${escapeHtml(c.descripcion)}</small>` : ''}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarClase(${c.id}, ${JSON.stringify(c.titulo)})">Eliminar</button>
+                </td>
+            </tr>`).join('');
+    } catch (e) {
+        document.getElementById('tablaCalendario').innerHTML =
+            `<tr><td colspan="5" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function abrirModalClase() {
+    document.getElementById('claseEditId').value = '';
+    document.getElementById('claseTitulo').value = '';
+    document.getElementById('claseFecha').value = '';
+    document.getElementById('claseHoraIni').value = '';
+    document.getElementById('claseHoraFin').value = '';
+    document.getElementById('claseDesc').value = '';
+    document.getElementById('claseCurso').value = '';
+    clearMsg('modalClaseMsg');
+    poblarSelectCursos();
+    abrirModal('modalClase');
+}
+
+async function guardarClase() {
+    const cursoId = document.getElementById('claseCurso').value;
+    const titulo  = document.getElementById('claseTitulo').value.trim();
+    const fecha   = document.getElementById('claseFecha').value;
+    const hi      = document.getElementById('claseHoraIni').value;
+    const hf      = document.getElementById('claseHoraFin').value;
+    const desc    = document.getElementById('claseDesc').value.trim();
+    const btn     = document.getElementById('btnGuardarClase');
+
+    if (!cursoId || !titulo || !fecha || !hi || !hf) {
+        showMsg('modalClaseMsg', 'Completá curso, título, fecha y horarios', 'error'); return;
+    }
+    if (hf <= hi) {
+        showMsg('modalClaseMsg', 'La hora fin debe ser posterior a la de inicio', 'error'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const r = await api('/calendario', {
+            method: 'POST',
+            body: JSON.stringify({
+                curso_id: parseInt(cursoId), titulo, fecha,
+                hora_inicio: hi, hora_fin: hf,
+                descripcion: desc || null,
+            })
+        });
+        const d = await r.json();
+        if (r.ok) {
+            cerrarModal('modalClase');
+            cargarCalendario();
+            showMsg('calendarioMsg', 'Clase creada', 'success');
+        } else {
+            showMsg('modalClaseMsg', formatErrorDetail(d.detail) || 'Error al guardar', 'error');
+        }
+    } catch (e) {
+        showMsg('modalClaseMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar clase';
+}
+
+function confirmarEliminarClase(id, titulo) {
+    document.getElementById('confirmarMsg').textContent =
+        `¿Eliminar la clase "${titulo}"?`;
+    document.getElementById('btnConfirmarEliminar').onclick = async () => {
+        cerrarModal('modalConfirmar');
+        const r = await api(`/calendario/${id}`, { method: 'DELETE' });
+        if (r.ok) cargarCalendario();
+        else { const d = await r.json(); showMsg('calendarioMsg', d.detail || 'No se pudo eliminar', 'error'); }
+    };
+    abrirModal('modalConfirmar');
+}
+
+// ===============================================================
+//  AVISOS A ALUMNOS
+// ===============================================================
+
+async function cargarAvisosAdmin() {
+    try {
+        const r = await api('/avisos?limite=100');
+        const d = await r.json();
+        const data = d.data || d;
+        const avisos = data.avisos || [];
+        avisosCache = avisos;
+        const tbody = document.getElementById('tablaAvisos');
+        if (!avisos.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Sin avisos publicados</td></tr>';
+            return;
+        }
+        tbody.innerHTML = avisos.map(a => `
+            <tr>
+                <td><strong>${escapeHtml(a.titulo)}</strong></td>
+                <td><small>${escapeHtml((a.contenido || '').slice(0, 80))}${(a.contenido || '').length > 80 ? '…' : ''}</small></td>
+                <td>${a.importante ? '<span class="badge badge-vencida">Sí</span>' : '<span class="badge badge-pendiente">No</span>'}</td>
+                <td>${badge(a.activo ? 'activo' : 'inactivo')}</td>
+                <td><small>${escapeHtml(a.fecha_publicacion || '—')}</small></td>
+                <td>
+                    <div class="flex" style="gap:6px;">
+                        <button class="btn btn-secondary btn-sm" onclick="editarAviso(${a.id})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminarAviso(${a.id}, ${JSON.stringify(a.titulo)})">Eliminar</button>
+                    </div>
+                </td>
+            </tr>`).join('');
+    } catch (e) {
+        document.getElementById('tablaAvisos').innerHTML =
+            `<tr><td colspan="6" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function abrirModalAviso() {
+    document.getElementById('avisoEditId').value = '';
+    document.getElementById('avisoTitulo').value = '';
+    document.getElementById('avisoContenido').value = '';
+    document.getElementById('avisoImportante').value = '0';
+    document.getElementById('avisoActivo').value = '1';
+    document.getElementById('avisoActivoGroup').style.display = 'none';
+    document.getElementById('modalAvisoTitulo').textContent = 'Nuevo aviso';
+    clearMsg('modalAvisoMsg');
+    abrirModal('modalAviso');
+}
+
+function editarAviso(id) {
+    const a = avisosCache.find(x => x.id === id);
+    if (!a) return;
+    document.getElementById('avisoEditId').value = id;
+    document.getElementById('avisoTitulo').value = a.titulo;
+    document.getElementById('avisoContenido').value = a.contenido;
+    document.getElementById('avisoImportante').value = a.importante ? '1' : '0';
+    document.getElementById('avisoActivo').value = a.activo ? '1' : '0';
+    document.getElementById('avisoActivoGroup').style.display = 'block';
+    document.getElementById('modalAvisoTitulo').textContent = 'Editar aviso';
+    clearMsg('modalAvisoMsg');
+    abrirModal('modalAviso');
+}
+
+async function guardarAviso() {
+    const id   = document.getElementById('avisoEditId').value;
+    const tit  = document.getElementById('avisoTitulo').value.trim();
+    const con  = document.getElementById('avisoContenido').value.trim();
+    const imp  = document.getElementById('avisoImportante').value === '1';
+    const act  = document.getElementById('avisoActivo').value === '1';
+    const btn  = document.getElementById('btnGuardarAviso');
+
+    if (!tit || !con) {
+        showMsg('modalAvisoMsg', 'Título y contenido son obligatorios', 'error'); return;
+    }
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        let r, d;
+        if (id) {
+            r = await api(`/avisos/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ titulo: tit, contenido: con, importante: imp, activo: act })
+            });
+        } else {
+            r = await api('/avisos', {
+                method: 'POST',
+                body: JSON.stringify({ titulo: tit, contenido: con, importante: imp })
+            });
+        }
+        d = await r.json();
+        if (r.ok) {
+            cerrarModal('modalAviso');
+            cargarAvisosAdmin();
+            showMsg('avisosMsg', id ? 'Aviso actualizado' : 'Aviso publicado', 'success');
+        } else {
+            showMsg('modalAvisoMsg', formatErrorDetail(d.detail) || 'Error al guardar', 'error');
+        }
+    } catch (e) {
+        showMsg('modalAvisoMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar aviso';
+}
+
+function confirmarEliminarAviso(id, titulo) {
+    document.getElementById('confirmarMsg').textContent =
+        `¿Eliminar el aviso "${titulo}"? Dejará de mostrarse a los alumnos.`;
+    document.getElementById('btnConfirmarEliminar').onclick = async () => {
+        cerrarModal('modalConfirmar');
+        const r = await api(`/avisos/${id}`, { method: 'DELETE' });
+        if (r.ok) cargarAvisosAdmin();
+        else { const d = await r.json(); showMsg('avisosMsg', d.detail || 'No se pudo eliminar', 'error'); }
+    };
+    abrirModal('modalConfirmar');
+}
+
+// ===============================================================
+//  COMUNICADOS INTERNOS
+// ===============================================================
+
+function toggleComCurso() {
+    const v = document.getElementById('comDestinatarios').value;
+    document.getElementById('comCursoGroup').style.display = (v === 'curso') ? 'block' : 'none';
+}
+
+async function cargarComunicados() {
+    try {
+        const r = await api('/comunicados');
+        const d = await r.json();
+        const data = d.data || d;
+        const items = data.comunicados || [];
+        const tbody = document.getElementById('tablaComunicados');
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin comunicados</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map(c => `
+            <tr>
+                <td><small>${escapeHtml((c.fecha || '').slice(0, 16))}</small></td>
+                <td><strong>${escapeHtml(c.asunto)}</strong><br><small style="color:#718096;">${escapeHtml((c.cuerpo || '').slice(0, 90))}${(c.cuerpo || '').length > 90 ? '…' : ''}</small></td>
+                <td>${c.destinatarios === 'curso'
+                        ? `Curso: ${escapeHtml(c.curso || '—')}`
+                        : 'Todo el staff'}</td>
+                <td>${escapeHtml(c.creado_por_nombre || '—')}</td>
+                <td>
+                    ${miRol === 'admin'
+                        ? `<button class="btn btn-danger btn-sm" onclick="confirmarEliminarComunicado(${c.id}, ${JSON.stringify(c.asunto)})">Eliminar</button>`
+                        : ''}
+                </td>
+            </tr>`).join('');
+    } catch (e) {
+        document.getElementById('tablaComunicados').innerHTML =
+            `<tr><td colspan="5" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function abrirModalComunicado() {
+    document.getElementById('comAsunto').value = '';
+    document.getElementById('comCuerpo').value = '';
+    document.getElementById('comDestinatarios').value = 'todos';
+    document.getElementById('comCurso').value = '';
+    document.getElementById('comCursoGroup').style.display = 'none';
+    clearMsg('modalComunicadoMsg');
+    poblarSelectCursos();
+    abrirModal('modalComunicado');
+}
+
+async function guardarComunicado() {
+    const asunto = document.getElementById('comAsunto').value.trim();
+    const cuerpo = document.getElementById('comCuerpo').value.trim();
+    const dest   = document.getElementById('comDestinatarios').value;
+    const cursoId = dest === 'curso' ? parseInt(document.getElementById('comCurso').value) : null;
+    const btn    = document.getElementById('btnGuardarComunicado');
+
+    if (!asunto || !cuerpo) {
+        showMsg('modalComunicadoMsg', 'Asunto y cuerpo son obligatorios', 'error'); return;
+    }
+    if (dest === 'curso' && !cursoId) {
+        showMsg('modalComunicadoMsg', 'Seleccioná un curso', 'error'); return;
+    }
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const r = await api('/comunicados', {
+            method: 'POST',
+            body: JSON.stringify({ asunto, cuerpo, destinatarios: dest, curso_id: cursoId })
+        });
+        const d = await r.json();
+        if (r.ok) {
+            cerrarModal('modalComunicado');
+            cargarComunicados();
+            showMsg('comunicadosMsg', 'Comunicado registrado', 'success');
+        } else {
+            showMsg('modalComunicadoMsg', formatErrorDetail(d.detail) || 'Error al guardar', 'error');
+        }
+    } catch (e) {
+        showMsg('modalComunicadoMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar comunicado';
+}
+
+function confirmarEliminarComunicado(id, asunto) {
+    document.getElementById('confirmarMsg').textContent = `¿Eliminar el comunicado "${asunto}"?`;
+    document.getElementById('btnConfirmarEliminar').onclick = async () => {
+        cerrarModal('modalConfirmar');
+        const r = await api(`/comunicados/${id}`, { method: 'DELETE' });
+        if (r.ok) cargarComunicados();
+        else { const d = await r.json(); showMsg('comunicadosMsg', d.detail || 'No se pudo eliminar', 'error'); }
+    };
+    abrirModal('modalConfirmar');
+}
+
+// ===============================================================
+//  CUOTAS — asignar individual / bulk
+// ===============================================================
+
+function autoMonto() {
+    const sel = document.getElementById('selectCursoMonto');
+    const opt = sel.options[sel.selectedIndex];
+    const monto = opt.dataset.monto;
+    if (monto) document.getElementById('cuotaMonto').value = parseFloat(monto).toFixed(2);
+}
+function autoBulkMonto() {
+    const sel = document.getElementById('bulkCurso');
+    const opt = sel.options[sel.selectedIndex];
+    const monto = opt.dataset.monto;
+    if (monto) document.getElementById('bulkMonto').value = parseFloat(monto).toFixed(2);
+}
+
+async function asignarCuota() {
+    const alumnoId   = document.getElementById('selectAlumno').value;
+    const concepto   = document.getElementById('cuotaConcepto').value.trim();
+    const monto      = document.getElementById('cuotaMonto').value;
+    const vencimiento = document.getElementById('cuotaVencimiento').value;
+    const resultado  = document.getElementById('resultadoAsignar');
+    if (!alumnoId || !concepto || !monto || !vencimiento) {
+        resultado.innerHTML = alert_('Completá todos los campos'); return;
+    }
+    try {
+        const r = await api('/asignar-cuotas', {
+            method: 'POST',
+            body: JSON.stringify({
+                alumno_id: parseInt(alumnoId),
+                cuotas: [{ alumno_id: parseInt(alumnoId), concepto, monto: parseFloat(monto), fecha_vencimiento: vencimiento }]
+            })
+        });
+        const d = await r.json();
+        resultado.innerHTML = r.ok
+            ? alert_(d.mensaje || 'Cuota asignada correctamente', 'success')
+            : alert_(formatErrorDetail(d.detail) || 'Error al asignar');
+    } catch (e) { resultado.innerHTML = alert_('Error: ' + e.message); }
+}
+
+function poblarSelectsMes() {
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const ahora = new Date();
+    const anioActual = ahora.getFullYear();
+    const mesActual  = ahora.getMonth() + 1;
+
+    ['bulkDesdeMes', 'bulkHastaMes'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || el.options.length > 0) return;
+        meses.forEach((nombre, i) => {
+            const opt = document.createElement('option');
+            opt.value = String(i + 1).padStart(2, '0');
+            opt.textContent = nombre;
+            if (i + 1 === mesActual) opt.selected = true;
+            el.appendChild(opt);
+        });
+    });
+    ['bulkDesdeAnio', 'bulkHastaAnio'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || el.options.length > 0) return;
+        for (let y = anioActual - 1; y <= anioActual + 3; y++) {
+            const opt = document.createElement('option');
+            opt.value = String(y);
+            opt.textContent = String(y);
+            if (y === anioActual) opt.selected = true;
+            el.appendChild(opt);
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', poblarSelectsMes);
+
+async function asignarCuotasBulk() {
+    const alumnoId = document.getElementById('bulkAlumno').value;
+    const monto    = parseFloat(document.getElementById('bulkMonto').value);
+    const dM = parseInt(document.getElementById('bulkDesdeMes').value);
+    const dY = parseInt(document.getElementById('bulkDesdeAnio').value);
+    const hM = parseInt(document.getElementById('bulkHastaMes').value);
+    const hY = parseInt(document.getElementById('bulkHastaAnio').value);
+    const resultado = document.getElementById('resultadoBulk');
+
+    if (!alumnoId || !monto || !dM || !dY || !hM || !hY) {
+        resultado.innerHTML = alert_('Completá todos los campos'); return;
+    }
+    if (hY * 12 + hM < dY * 12 + dM) {
+        resultado.innerHTML = alert_('El mes final debe ser igual o posterior al inicial'); return;
+    }
+
+    const cuotas = [];
+    let y = dY, m = dM;
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    while (y * 12 + m <= hY * 12 + hM) {
+        const mm = String(m).padStart(2, '0');
+        const lastDay = new Date(y, m, 0).getDate();
+        const dd = String(lastDay).padStart(2, '0');
+        cuotas.push({
+            alumno_id: parseInt(alumnoId),
+            concepto: `Cuota ${meses[m-1]} ${y}`,
+            monto,
+            fecha_vencimiento: `${y}-${mm}-${dd}`
+        });
+        m++; if (m > 12) { m = 1; y++; }
+    }
+
+    if (cuotas.length === 0) {
+        resultado.innerHTML = alert_('No se generó ninguna cuota — revisá el rango de meses.'); return;
+    }
+    resultado.innerHTML = `<div class="alert alert-info">Generando ${cuotas.length} cuota(s)...</div>`;
+    try {
+        const r = await api('/asignar-cuotas', {
+            method: 'POST',
+            body: JSON.stringify({ alumno_id: parseInt(alumnoId), cuotas })
+        });
+        const d = await r.json();
+        resultado.innerHTML = r.ok
+            ? alert_(`${cuotas.length} cuota(s) asignadas correctamente`, 'success')
+            : alert_(formatErrorDetail(d.detail) || 'Error al asignar');
+    } catch (e) { resultado.innerHTML = alert_('Error: ' + e.message); }
+}
+
+// ===============================================================
+//  LINKS DE PAGO (MercadoPago)
+// ===============================================================
+
+async function crearPagoMP() {
+    const titulo  = document.getElementById('pagoTitulo').value.trim();
+    const monto   = document.getElementById('pagoMonto').value;
+    const resultado = document.getElementById('resultadoPagoMP');
+    if (!titulo || !monto) { resultado.innerHTML = alert_('Completá concepto y monto'); return; }
+    resultado.innerHTML = '<div class="alert alert-info">Generando...</div>';
+    try {
+        const r = await api('/crear-pago', {
+            method: 'POST',
+            body: JSON.stringify({ titulo, monto: parseFloat(monto), cantidad: 1 })
+        });
+        const d = await r.json();
+        if (r.ok) {
+            resultado.innerHTML = `
+                <div class="reporte" style="margin-top:12px;">
+                    <a href="${d.init_point}" target="_blank" class="btn-mp">Abrir MercadoPago</a>
+                </div>`;
+            cargarPagos();
+        } else { resultado.innerHTML = alert_(d.detail || 'Error'); }
+    } catch (e) { resultado.innerHTML = alert_('Error: ' + e.message); }
+}
+
+async function cargarPagos() {
+    try {
+        const r = await api('/pagos');
+        const d = await r.json();
+        const tbody = document.getElementById('listaPagos');
+        if (r.ok && d.pagos?.length) {
+            tbody.innerHTML = d.pagos.map(p => `
+                <tr>
+                    <td>${escapeHtml(p.concepto)}</td>
+                    <td><strong>$${p.monto}</strong></td>
+                    <td>${badge(p.estado)}</td>
+                    <td><span style="font-size:12px;color:var(--gray-400);">${escapeHtml(p.fecha_creacion || '')}</span></td>
+                </tr>`).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Sin pagos registrados</td></tr>';
+        }
+    } catch (e) {
+        document.getElementById('listaPagos').innerHTML =
+            `<tr><td colspan="4" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+async function cargarPendientesVerificacion() {
+    try {
+        const r = await api('/pagos/pendiente-verificacion');
+        const d = await r.json();
+        const tbody = document.getElementById('listaPendientesVerif');
+        if (r.ok && d.cuotas?.length) {
+            tbody.innerHTML = d.cuotas.map(c => `
+                <tr>
+                    <td><strong>${escapeHtml(c.alumno_nombre)}</strong><br><small style="color:#718096;">${escapeHtml(c.alumno_email)}</small></td>
+                    <td>${escapeHtml(c.concepto)}</td>
+                    <td><strong>$${c.monto}</strong></td>
+                    <td style="font-size:12px;">${escapeHtml(c.comprobante_manual || '—')}</td>
+                    <td><small>${escapeHtml(c.fecha_vencimiento)}</small></td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="aprobarPagoManual(${c.id})">Aprobar</button>
+                    </td>
+                </tr>`).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Sin pagos pendientes de verificación</td></tr>';
+        }
+    } catch (e) {
+        document.getElementById('listaPendientesVerif').innerHTML =
+            `<tr><td colspan="6" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+async function aprobarPagoManual(cuotaId) {
+    try {
+        const r = await api(`/pagos/aprobar/${cuotaId}`, { method: 'POST' });
+        const d = await r.json();
+        if (r.ok) {
+            showMsg('pendienteVerifMsg', d.mensaje || 'Pago aprobado', 'success');
+            cargarPendientesVerificacion();
+        } else {
+            showMsg('pendienteVerifMsg', d.detail || 'Error al aprobar', 'error');
+        }
+    } catch (e) {
+        showMsg('pendienteVerifMsg', 'Error: ' + e.message, 'error');
+    }
+}
+
+// ===============================================================
+//  BUSCAR ALUMNO (ficha completa)
+// ===============================================================
+
+async function buscarAlumno() {
+    const q = document.getElementById('buscarQ').value.trim();
+    const cont = document.getElementById('resultadoBuscar');
+    if (!q) { cont.innerHTML = alert_('Ingresá un término de búsqueda'); return; }
+    cont.innerHTML = '<div class="alert alert-info" style="margin-top:10px;">Buscando...</div>';
+    try {
+        const r = await api('/alumnos/ficha?q=' + encodeURIComponent(q));
+        const d = await r.json();
+        if (!r.ok) { cont.innerHTML = alert_(d.detail?.mensaje || d.detail || 'Error'); return; }
+        const resultados = d.resultados || [];
+        if (!resultados.length) {
+            cont.innerHTML = '<div class="alert alert-info" style="margin-top:10px;">Sin resultados.</div>';
+            return;
+        }
+        cont.innerHTML = resultados.map(a => `
+            <div class="ficha-card">
+                <h3>${escapeHtml(nombreCompleto(a))}</h3>
+                <div class="ficha-grid">
+                    <div><small>Email</small><strong>${escapeHtml(a.email || '—')}</strong></div>
+                    <div><small>DNI</small><strong>${escapeHtml(a.dni || '—')}</strong></div>
+                    <div><small>Teléfono</small><strong>${escapeHtml(a.telefono || '—')}</strong></div>
+                    <div><small>Curso</small><strong>${escapeHtml(a.curso || '—')}</strong></div>
+                    <div><small>Alta</small><strong>${escapeHtml((a.creado_en || '—').slice(0, 10))}</strong></div>
+                </div>
+                <div class="ficha-cuotas">
+                    <div class="chip"><strong>${a.cuotas.pagadas}</strong> pagadas</div>
+                    <div class="chip"><strong>${a.cuotas.pendientes}</strong> pendientes</div>
+                    <div class="chip"><strong>${a.cuotas.vencidas}</strong> vencidas</div>
+                    <div class="chip">Deuda: <strong>$${a.cuotas.deuda.toFixed(2)}</strong></div>
+                </div>
+            </div>`).join('');
+    } catch (e) {
+        cont.innerHTML = alert_('Error: ' + e.message);
+    }
+}
+
+// ===============================================================
+//  REPORTES
+// ===============================================================
+
+async function cargarReportes() {
+    const cont = document.getElementById('reportesContent');
+    try {
+        const r = await api('/reportes/resumen');
+        const d = await r.json();
+        if (!r.ok) { cont.innerHTML = alert_(d.detail || 'Error'); return; }
+        const data = d.data || d;
+        document.getElementById('dashTotalAlumnos').textContent = data.alumnos_totales;
+        document.getElementById('dashConDeuda').textContent     = data.alumnos_con_deuda;
+        document.getElementById('dashCuotasVenc').textContent   = data.cuotas_vencidas.cantidad;
+
+        const cards = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px;">
+                <div class="stat-card-simple">
+                    <div class="num">${data.alumnos_totales}</div>
+                    <div class="label">Alumnos activos</div>
+                </div>
+                <div class="stat-card-simple danger">
+                    <div class="num">${data.alumnos_con_deuda}</div>
+                    <div class="label">Alumnos con deuda</div>
+                </div>
+                <div class="stat-card-simple warn">
+                    <div class="num">${data.cuotas_vencidas.cantidad}</div>
+                    <div class="label">Cuotas vencidas ($${data.cuotas_vencidas.monto.toFixed(2)})</div>
+                </div>
+            </div>`;
+
+        const porCurso = data.alumnos_por_curso || [];
+        const tablaCurso = `
+            <div class="card">
+                <div class="card-header"><span class="card-title">Alumnos por curso</span></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Curso</th><th>Alumnos</th></tr></thead>
+                        <tbody>
+                        ${porCurso.length
+                            ? porCurso.map(c => `<tr><td>${escapeHtml(c.nombre)}</td><td><strong>${c.alumnos}</strong></td></tr>`).join('')
+                            : '<tr><td colspan="2" class="table-empty">Sin cursos activos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+        const ultimos = data.ultimos_alumnos || [];
+        const tablaUltimos = `
+            <div class="card" style="margin-top:14px;">
+                <div class="card-header"><span class="card-title">Últimos alumnos registrados</span></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Apellido y nombre</th><th>Email</th><th>Curso</th><th>Alta</th></tr></thead>
+                        <tbody>
+                        ${ultimos.length
+                            ? ultimos.map(u => `
+                                <tr>
+                                    <td><strong>${escapeHtml(nombreCompleto(u))}</strong></td>
+                                    <td>${escapeHtml(u.email)}</td>
+                                    <td>${escapeHtml(u.curso || '—')}</td>
+                                    <td><small>${escapeHtml((u.creado_en || '').slice(0, 10))}</small></td>
+                                </tr>`).join('')
+                            : '<tr><td colspan="4" class="table-empty">Sin alumnos</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+        cont.innerHTML = cards + tablaCurso + tablaUltimos;
+    } catch (e) {
+        cont.innerHTML = alert_('Error: ' + e.message);
+    }
+}
+
+// ===============================================================
+//  CALENDARIO — tabs Clases / Eventos
+// ===============================================================
+
+let tabCalendarioActual = 'clases';
+
+function cambiarTabCalendario(tab) {
+    tabCalendarioActual = tab;
+    document.querySelectorAll('#secCalendario .filter-btn[data-tab]').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    document.getElementById('tabCalendarioClases').style.display  = tab === 'clases'  ? '' : 'none';
+    document.getElementById('tabCalendarioEventos').style.display = tab === 'eventos' ? '' : 'none';
+    document.getElementById('btnNuevaClase').style.display  = tab === 'clases'  ? '' : 'none';
+    document.getElementById('btnNuevoEvento').style.display = tab === 'eventos' ? '' : 'none';
+    if (tab === 'eventos') cargarEventos();
+}
+
+// ===============================================================
+//  EVENTOS INSTITUCIONALES
+// ===============================================================
+
+async function cargarEventos() {
+    try {
+        const r = await api('/eventos');
+        const d = await r.json();
+        if (!r.ok) {
+            document.getElementById('tablaEventos').innerHTML =
+                `<tr><td colspan="5" class="table-empty">${formatErrorDetail(d.detail) || 'Error'}</td></tr>`;
+            return;
+        }
+        const data = d.data || d;
+        eventosCache = data.eventos || [];
+        renderEventos(eventosCache);
+    } catch (e) {
+        document.getElementById('tablaEventos').innerHTML =
+            `<tr><td colspan="5" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function renderEventos(lista) {
+    const tbody = document.getElementById('tablaEventos');
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin eventos cargados</td></tr>';
+        return;
+    }
+    const recortar = (s) => (s || '').slice(0, 5);
+    tbody.innerHTML = lista.map(ev => {
+        const fecha = ev.fecha_fin && ev.fecha_fin !== ev.fecha_inicio
+            ? `${ev.fecha_inicio} → ${ev.fecha_fin}`
+            : ev.fecha_inicio;
+        const hora = ev.todo_el_dia
+            ? '<small style="color:#94a3b8;">Todo el día</small>'
+            : (ev.hora_inicio ? `${recortar(ev.hora_inicio)} – ${recortar(ev.hora_fin || '')}` : '—');
+        return `
+            <tr>
+                <td>${escapeHtml(fecha)}<br><small style="color:#64748b;">${hora}</small></td>
+                <td><strong>${escapeHtml(ev.titulo)}</strong>${ev.descripcion ? `<br><small style="color:#718096;">${escapeHtml(ev.descripcion)}</small>` : ''}</td>
+                <td>${badgeTipoEvento(ev.tipo)}</td>
+                <td>${ev.visible_alumno ? 'Sí' : '<small style="color:#94a3b8;">Solo staff</small>'}</td>
+                <td>
+                    <div class="flex" style="gap:6px;">
+                        <button class="btn btn-secondary btn-sm" onclick="editarEvento(${ev.id})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminarEvento(${ev.id}, ${JSON.stringify(ev.titulo)})">Eliminar</button>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function abrirModalEvento() {
+    document.getElementById('eventoEditId').value = '';
+    document.getElementById('eventoTitulo').value = '';
+    document.getElementById('eventoTipo').value = 'evento';
+    document.getElementById('eventoFechaIni').value = '';
+    document.getElementById('eventoFechaFin').value = '';
+    document.getElementById('eventoHoraIni').value = '';
+    document.getElementById('eventoHoraFin').value = '';
+    document.getElementById('eventoTodoElDia').value = '0';
+    document.getElementById('eventoVisibleAlumno').value = '1';
+    document.getElementById('eventoDesc').value = '';
+    document.getElementById('modalEventoTitulo').textContent = 'Nuevo evento';
+    toggleEventoHoras();
+    clearMsg('modalEventoMsg');
+    abrirModal('modalEvento');
+}
+
+function editarEvento(id) {
+    const ev = eventosCache.find(e => e.id === id);
+    if (!ev) return;
+    document.getElementById('eventoEditId').value = id;
+    document.getElementById('eventoTitulo').value = ev.titulo || '';
+    document.getElementById('eventoTipo').value = ev.tipo || 'evento';
+    document.getElementById('eventoFechaIni').value = ev.fecha_inicio || '';
+    document.getElementById('eventoFechaFin').value = ev.fecha_fin || '';
+    document.getElementById('eventoHoraIni').value = (ev.hora_inicio || '').slice(0, 5);
+    document.getElementById('eventoHoraFin').value = (ev.hora_fin || '').slice(0, 5);
+    document.getElementById('eventoTodoElDia').value = ev.todo_el_dia ? '1' : '0';
+    document.getElementById('eventoVisibleAlumno').value = ev.visible_alumno ? '1' : '0';
+    document.getElementById('eventoDesc').value = ev.descripcion || '';
+    document.getElementById('modalEventoTitulo').textContent = 'Editar evento';
+    toggleEventoHoras();
+    clearMsg('modalEventoMsg');
+    abrirModal('modalEvento');
+}
+
+function toggleEventoHoras() {
+    const todo = document.getElementById('eventoTodoElDia').value === '1';
+    document.getElementById('eventoHoraIni').disabled = todo;
+    document.getElementById('eventoHoraFin').disabled = todo;
+    if (todo) {
+        document.getElementById('eventoHoraIni').value = '';
+        document.getElementById('eventoHoraFin').value = '';
+    }
+}
+
+async function guardarEvento() {
+    const id = document.getElementById('eventoEditId').value;
+    const titulo = document.getElementById('eventoTitulo').value.trim();
+    const tipo = document.getElementById('eventoTipo').value;
+    const fechaIni = document.getElementById('eventoFechaIni').value;
+    const fechaFin = document.getElementById('eventoFechaFin').value;
+    const horaIni  = document.getElementById('eventoHoraIni').value;
+    const horaFin  = document.getElementById('eventoHoraFin').value;
+    const todoDia  = document.getElementById('eventoTodoElDia').value === '1';
+    const visAlu   = document.getElementById('eventoVisibleAlumno').value === '1';
+    const desc     = document.getElementById('eventoDesc').value.trim();
+    const btn = document.getElementById('btnGuardarEvento');
+
+    if (!titulo || !fechaIni) {
+        showMsg('modalEventoMsg', 'Título y fecha de inicio son obligatorios', 'error'); return;
+    }
+    if (fechaFin && fechaFin < fechaIni) {
+        showMsg('modalEventoMsg', 'La fecha fin no puede ser anterior a la inicio', 'error'); return;
+    }
+    if (!todoDia && horaIni && horaFin && horaFin <= horaIni) {
+        showMsg('modalEventoMsg', 'La hora fin debe ser posterior a la inicio', 'error'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const body = {
+            titulo, tipo, fecha_inicio: fechaIni,
+            fecha_fin: fechaFin || null,
+            hora_inicio: todoDia ? null : (horaIni || null),
+            hora_fin:    todoDia ? null : (horaFin || null),
+            todo_el_dia: todoDia,
+            visible_alumno: visAlu,
+            descripcion: desc || null,
+        };
+        const url = id ? `/eventos/${id}` : '/eventos';
+        const method = id ? 'PUT' : 'POST';
+        const r = await api(url, { method, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (r.ok) {
+            cerrarModal('modalEvento');
+            cargarEventos();
+            showMsg('calendarioMsg', id ? 'Evento actualizado' : 'Evento creado', 'success');
+        } else {
+            showMsg('modalEventoMsg', formatErrorDetail(d.detail) || 'Error al guardar', 'error');
+        }
+    } catch (e) {
+        showMsg('modalEventoMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Guardar evento';
+}
+
+function confirmarEliminarEvento(id, titulo) {
+    document.getElementById('confirmarMsg').textContent = `¿Eliminar el evento "${titulo}"?`;
+    document.getElementById('btnConfirmarEliminar').onclick = async () => {
+        cerrarModal('modalConfirmar');
+        const r = await api(`/eventos/${id}`, { method: 'DELETE' });
+        if (r.ok) cargarEventos();
+        else { const d = await r.json(); showMsg('calendarioMsg', formatErrorDetail(d.detail) || 'No se pudo eliminar', 'error'); }
+    };
+    abrirModal('modalConfirmar');
+}
+
+// ===============================================================
+//  REPORTES — tabs
+// ===============================================================
+
+let tabReportesActual = 'resumen';
+
+function cambiarTabReportes(tab) {
+    tabReportesActual = tab;
+    document.querySelectorAll('#secReportes .filter-btn[data-tab]').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    document.getElementById('tabReporteResumen').style.display        = tab === 'resumen' ? '' : 'none';
+    document.getElementById('tabReporteDeudores').style.display       = tab === 'deudores' ? '' : 'none';
+    document.getElementById('tabReporteCuotasVencidas').style.display = tab === 'cuotas-vencidas' ? '' : 'none';
+    cargarReporteActivo();
+}
+
+function cargarReporteActivo() {
+    if (tabReportesActual === 'resumen') cargarReportes();
+    else if (tabReportesActual === 'deudores') cargarDeudores();
+    else if (tabReportesActual === 'cuotas-vencidas') cargarCuotasVencidas();
+}
+
+function irABuscarAlumno(alumnoId) {
+    const navBuscar = document.querySelector('.nav-item[onclick*="secBuscarAlumno"]');
+    if (navBuscar) navBuscar.click();
+    const inp = document.getElementById('buscarQ');
+    const al = alumnosCache.find(a => a.id === alumnoId);
+    if (inp && al) {
+        inp.value = al.dni || al.email || '';
+        if (typeof buscarAlumno === 'function') buscarAlumno();
+    } else if (al) {
+        alert(`Alumno: ${nombreCompleto(al)} — DNI ${al.dni || '—'}`);
+    }
+}
+
+async function cargarDeudores() {
+    const tbody = document.getElementById('tablaDeudores');
+    const estado = document.getElementById('filtroDeudoresEstado').value;
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Cargando...</td></tr>';
+    try {
+        const r = await api(`/reportes/deudores?estado=${encodeURIComponent(estado)}`);
+        const d = await r.json();
+        if (!r.ok) {
+            tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${formatErrorDetail(d.detail) || 'Error'}</td></tr>`;
+            return;
+        }
+        const data = d.data || d;
+        const lista = data.deudores || [];
+        if (!lista.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="table-empty">No hay deudores para el filtro elegido</td></tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(x => `
+            <tr>
+                <td><strong>${escapeHtml([x.apellido, x.nombre].filter(Boolean).join(', ') || x.nombre)}</strong>
+                    <br><small style="color:#64748b;">${escapeHtml(x.email)}</small></td>
+                <td>${escapeHtml(x.dni || '—')}</td>
+                <td>${escapeHtml(x.curso || '—')}</td>
+                <td>${x.cuotas_adeudadas}</td>
+                <td><strong>$${parseFloat(x.deuda_total||0).toFixed(2)}</strong></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="irABuscarAlumno(${x.id})">Ver ficha</button></td>
+            </tr>`).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+async function cargarCuotasVencidas() {
+    const tbody = document.getElementById('tablaCuotasVencidas');
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Cargando...</td></tr>';
+    try {
+        const r = await api('/reportes/cuotas-vencidas');
+        const d = await r.json();
+        if (!r.ok) {
+            tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${formatErrorDetail(d.detail) || 'Error'}</td></tr>`;
+            return;
+        }
+        const data = d.data || d;
+        const lista = data.cuotas || [];
+        if (!lista.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Sin cuotas vencidas</td></tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(c => `
+            <tr>
+                <td>${escapeHtml(c.fecha_vencimiento)}</td>
+                <td><span style="color:#dc2626;font-weight:600;">${c.dias_vencida} d</span></td>
+                <td><strong>${escapeHtml([c.apellido, c.nombre].filter(Boolean).join(', ') || c.nombre)}</strong>
+                    <br><small style="color:#64748b;">DNI ${escapeHtml(c.dni || '—')}</small></td>
+                <td>${escapeHtml(c.curso || '—')}</td>
+                <td>${escapeHtml(c.concepto)}</td>
+                <td><strong>$${parseFloat(c.monto||0).toFixed(2)}</strong></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="irABuscarAlumno(${c.alumno_id})">Ver ficha</button></td>
+            </tr>`).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error: ${e.message}</td></tr>`;
+    }
+}
+
+// ===============================================================
+//  CONFIGURACIÓN
+// ===============================================================
+
+async function cargarConfiguracion() {
+    if (miRol !== 'admin') {
+        // Solo admin lee /configuracion. Para administrativo, ocultar cards.
+        ['cardDatosInstituto','cardCuotasConfig','cardAplicacionConfig'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        return;
+    }
+    try {
+        const r = await api('/configuracion');
+        const d = await r.json();
+        if (!r.ok) {
+            showMsg('configMsg', formatErrorDetail(d.detail) || 'No se pudo leer la configuración', 'error');
+            return;
+        }
+        const data = d.data || d;
+        configCache = data.configuracion || {};
+        document.getElementById('cardDatosInstituto').style.display  = '';
+        document.getElementById('cardCuotasConfig').style.display    = '';
+        document.getElementById('cardAplicacionConfig').style.display = '';
+        document.getElementById('cfgInstNombre').value     = configCache.instituto_nombre     || '';
+        document.getElementById('cfgInstEmail').value      = configCache.instituto_email      || '';
+        document.getElementById('cfgInstTelefono').value   = configCache.instituto_telefono   || '';
+        document.getElementById('cfgInstDireccion').value  = configCache.instituto_direccion  || '';
+        document.getElementById('cfgCuotaDiaVenc').value   = configCache.cuotas_dia_vencimiento || '10';
+        document.getElementById('cfgCuotaRecargo').value   = configCache.cuotas_recargo_porcentaje || '0';
+        document.getElementById('cfgChatbotHab').value     = (configCache.chatbot_habilitado || 'true').toLowerCase();
+        document.getElementById('cfgAvisosDias').value     = configCache.avisos_dias_visibles || '30';
+    } catch (e) {
+        showMsg('configMsg', 'Error: ' + e.message, 'error');
+    }
+}
+
+async function _putConfig(payload, msgOk) {
+    try {
+        const r = await api('/configuracion', { method: 'PUT', body: JSON.stringify(payload) });
+        const d = await r.json();
+        if (r.ok) showMsg('configMsg', msgOk || 'Configuración actualizada', 'success');
+        else      showMsg('configMsg', formatErrorDetail(d.detail) || 'No se pudo guardar', 'error');
+    } catch (e) {
+        showMsg('configMsg', 'Error: ' + e.message, 'error');
+    }
+}
+
+function guardarConfigInstituto() {
+    _putConfig({
+        instituto_nombre:    document.getElementById('cfgInstNombre').value.trim(),
+        instituto_email:     document.getElementById('cfgInstEmail').value.trim(),
+        instituto_telefono:  document.getElementById('cfgInstTelefono').value.trim(),
+        instituto_direccion: document.getElementById('cfgInstDireccion').value.trim(),
+    }, 'Datos del instituto actualizados');
+}
+
+function guardarConfigCuotas() {
+    const dia = parseInt(document.getElementById('cfgCuotaDiaVenc').value);
+    if (isNaN(dia) || dia < 1 || dia > 28) {
+        showMsg('configMsg', 'Día de vencimiento debe estar entre 1 y 28', 'error'); return;
+    }
+    _putConfig({
+        cuotas_dia_vencimiento:    String(dia),
+        cuotas_recargo_porcentaje: document.getElementById('cfgCuotaRecargo').value || '0',
+    }, 'Configuración de cuotas actualizada');
+}
+
+function guardarConfigApp() {
+    _putConfig({
+        chatbot_habilitado:   document.getElementById('cfgChatbotHab').value,
+        avisos_dias_visibles: document.getElementById('cfgAvisosDias').value || '30',
+    }, 'Aplicación actualizada');
+}
+
+// ===============================================================
+//  CAMBIO DE CONTRASEÑA
+// ===============================================================
+
+function abrirModalCambioPassword() {
+    document.getElementById('pwdActual').value = '';
+    document.getElementById('pwdNueva').value = '';
+    document.getElementById('pwdNueva2').value = '';
+    clearMsg('modalPasswordMsg');
+    abrirModal('modalCambioPassword');
+}
+
+async function guardarPassword() {
+    const actual = document.getElementById('pwdActual').value;
+    const nueva  = document.getElementById('pwdNueva').value;
+    const nueva2 = document.getElementById('pwdNueva2').value;
+    const btn    = document.getElementById('btnGuardarPassword');
+
+    if (!actual || !nueva) {
+        showMsg('modalPasswordMsg', 'Completá ambas contraseñas', 'error'); return;
+    }
+    if (nueva.length < 8) {
+        showMsg('modalPasswordMsg', 'La contraseña nueva debe tener al menos 8 caracteres', 'error'); return;
+    }
+    if (nueva !== nueva2) {
+        showMsg('modalPasswordMsg', 'Las contraseñas no coinciden', 'error'); return;
+    }
+    if (actual === nueva) {
+        showMsg('modalPasswordMsg', 'La nueva debe ser distinta a la actual', 'error'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const r = await api('/perfil/password', {
+            method: 'PUT',
+            body: JSON.stringify({ password_actual: actual, password_nueva: nueva }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+            cerrarModal('modalCambioPassword');
+            showMsg('configMsg', 'Contraseña actualizada', 'success');
+        } else {
+            showMsg('modalPasswordMsg', formatErrorDetail(d.detail) || 'No se pudo cambiar la contraseña', 'error');
+        }
+    } catch (e) {
+        showMsg('modalPasswordMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Cambiar';
+}
+
+// ===============================================================
+//  MODAL HELPERS
+// ===============================================================
+
+function abrirModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+function cerrarModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+}
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) cerrarModal(overlay.id);
+    });
+});
+</script>
+
+</body>
+</html>

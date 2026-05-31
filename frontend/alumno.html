@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>AMICANA 2.0 — Panel Alumno</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="estilos.css">
+    <link rel="stylesheet" href="/static/chatbot-widget.css">
+    <style>
+        /* Dashboard: bienvenida y secciones */
+        .dashboard-hero {
+            background: linear-gradient(135deg, #1f3a5f 0%, #2c5282 100%);
+            color: #fff;
+            padding: 24px 28px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .dashboard-hero h1 { margin: 0 0 4px; font-size: 24px; font-weight: 700; }
+        .dashboard-hero .fecha { font-size: 14px; opacity: .85; text-transform: capitalize; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .aviso-card {
+            border-left: 4px solid var(--brand, #2c5282);
+            padding: 12px 14px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .aviso-card.importante {
+            border-left-color: #d97706;
+            background: #fffbeb;
+        }
+        .aviso-titulo { font-weight: 700; color: var(--c-text, #1a202c); margin-bottom: 4px; }
+        .aviso-meta { font-size: 11px; color: #718096; margin-bottom: 6px; }
+        .aviso-cuerpo { font-size: 13px; color: #2d3748; line-height: 1.5; }
+
+        .progreso-row { display: flex; gap: 16px; flex-wrap: wrap; }
+        .progreso-item {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px 12px;
+            background: #f7fafc;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .progreso-num { font-size: 22px; font-weight: 700; color: #1f3a5f; }
+        .progreso-label { font-size: 11px; color: #718096; text-transform: uppercase; }
+
+        .quick-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+        .quick-btn {
+            padding: 14px 10px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform .1s, box-shadow .15s, border-color .15s;
+            font-size: 13px;
+            font-weight: 600;
+            color: #2d3748;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .quick-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,.08);
+            border-color: #2c5282;
+        }
+        .quick-btn .icon { font-size: 22px; }
+
+        .clase-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 13px;
+        }
+        .clase-row:last-child { border-bottom: none; }
+        .clase-row .dia { font-weight: 600; color: #2d3748; }
+        .clase-row .hora { color: #718096; }
+        .clase-row .aula { color: #718096; text-align: right; }
+    </style>
+</head>
+<body>
+
+<!-- ── Set de íconos SVG monocromáticos (heredan currentColor) ─────────── -->
+<svg width="0" height="0" style="position:absolute;" aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/>
+    </symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+        <polyline points="14 3 14 9 20 9"/>
+        <line x1="8"  y1="13" x2="16" y2="13"/>
+        <line x1="8"  y1="17" x2="13" y2="17"/>
+    </symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+    </symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2"  x2="16" y2="6"/>
+        <line x1="8"  y1="2"  x2="8"  y2="6"/>
+        <line x1="3"  y1="10" x2="21" y2="10"/>
+    </symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6"  y1="20" x2="6"  y2="14"/>
+    </symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8"  x2="12.01" y2="8"/>
+    </symbol>
+</svg>
+
+<div class="app-layout">
+
+    <!-- TOP BAR -->
+    <header class="app-topbar">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menú">
+                <span></span><span></span><span></span>
+            </button>
+            <a class="topbar-brand" href="#">
+                AMICANA
+                <span class="topbar-brand-badge">Alumno</span>
+            </a>
+        </div>
+        <div class="topbar-user">
+            <div class="topbar-user-info">
+                <div class="topbar-user-name" id="userName">—</div>
+                <div class="topbar-user-role" id="userCurso">—</div>
+            </div>
+            <div class="topbar-avatar" id="userAvatar">?</div>
+            <button class="btn btn-danger btn-sm" onclick="logout()" data-testid="btn-logout">Salir</button>
+        </div>
+    </header>
+
+    <!-- SIDEBAR -->
+    <nav class="app-sidebar" id="sidebar">
+        <div class="sidebar-section-label">Mi cuenta</div>
+        <a class="nav-item active" id="navInicio" onclick="showSection('secInicio', this)">
+            <svg class="nav-item-icon" width="18" height="18"><use href="#i-home"/></svg>
+            Inicio
+        </a>
+        <a class="nav-item" onclick="showSection('secCuotas', this)">
+            <svg class="nav-item-icon" width="18" height="18"><use href="#i-doc"/></svg>
+            Mis Cuotas
+        </a>
+        <a class="nav-item" onclick="showSection('secProgreso', this); cargarProgreso();">
+            <svg class="nav-item-icon" width="18" height="18"><use href="#i-chart"/></svg>
+            Mi Progreso
+        </a>
+        <a class="nav-item" onclick="showSection('secCalendario', this); cargarCalendarioAlumno();">
+            <svg class="nav-item-icon" width="18" height="18"><use href="#i-calendar"/></svg>
+            Calendario
+        </a>
+        <a class="nav-item" onclick="showSection('secInstitucional', this);">
+            <svg class="nav-item-icon" width="18" height="18"><use href="#i-info"/></svg>
+            Quiénes somos
+        </a>
+        <a class="nav-item" onclick="showSection('secPerfil', this); cargarPerfilEditable();">
+            <svg class="nav-item-icon" width="18" height="18"><use href="#i-user"/></svg>
+            Mi Perfil
+        </a>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="app-main">
+
+        <!-- ============ DASHBOARD (HOME) ============ -->
+        <div id="secInicio" class="section active">
+
+            <!-- 0. Alertas proactivas (eventos próximos 3 días) -->
+            <div id="alertasDashboard" style="margin-bottom:14px;"></div>
+
+            <!-- 1. Bienvenida -->
+            <div class="dashboard-hero">
+                <h1 id="bienvenida">Buen día</h1>
+                <div class="fecha" id="fechaHoy">—</div>
+            </div>
+
+            <div class="dashboard-grid">
+
+                <!-- 2. Avisos -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Avisos del instituto</span></div>
+                    <div class="card-body" style="padding:14px;">
+                        <div id="listaAvisos">
+                            <div class="alert alert-info">Cargando avisos...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Próximas clases (consume /calendario filtrado por curso del alumno) -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Próximas clases</span></div>
+                    <div class="card-body" style="padding:14px;">
+                        <div id="listaClases">
+                            <div class="alert alert-info">Cargando clases...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Mis cuotas (resumen) -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Mis cuotas</span></div>
+                    <div class="card-body" style="padding:14px;">
+                        <div id="dashCuotas">
+                            <div class="alert alert-info">Cargando cuotas...</div>
+                        </div>
+                        <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;"
+                                onclick="abrirChatbotParaPagar()">
+                            Pagar cuota
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Mi progreso (resumen) -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Mi progreso</span></div>
+                    <div class="card-body" style="padding:14px;">
+                        <div id="dashProgreso">
+                            <p style="font-size:13px;color:#4a5568;">Cargando...</p>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" style="margin-top:10px;width:100%;"
+                                onclick="document.querySelector('a.nav-item[onclick*=secProgreso]').click()">
+                            Ver detalle
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 5. Accesos rápidos -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">Accesos rápidos</span></div>
+                <div class="card-body" style="padding:14px;">
+                    <div class="quick-grid">
+                        <button class="quick-btn" onclick="abrirChatbotParaPagar()">
+                            <span>Asistente de pago</span>
+                        </button>
+                        <button class="quick-btn" onclick="abrirHistorialDesdeAccesos()">
+                            <span>Historial de pagos</span>
+                        </button>
+                        <button class="quick-btn"
+                                onclick="showSection('secPerfil', null); cargarPerfilEditable();">
+                            <span>Editar perfil</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ============ MIS CUOTAS (estado / historial) ============ -->
+        <div id="secCuotas" class="section">
+
+            <div class="profile-header" id="profileHeader">
+                <div class="profile-avatar" id="profileAvatar">?</div>
+                <div>
+                    <div class="profile-name" id="profileName">Cargando...</div>
+                    <div class="profile-meta" id="profileMeta"><span>—</span></div>
+                </div>
+            </div>
+
+            <div class="filter-buttons" style="margin: 8px 0 16px 0;">
+                <button type="button" class="filter-btn active" data-cuotas-tab="estado"
+                        onclick="switchCuotasTab('estado')">Estado de cuenta</button>
+                <button type="button" class="filter-btn" data-cuotas-tab="historial"
+                        onclick="switchCuotasTab('historial')">Historial de pagos</button>
+            </div>
+
+            <div id="cuotasTabEstado">
+                <div class="stats-grid" id="statsGrid" data-testid="stats-grid">
+                    <div class="stat-card pendiente">
+                        <div class="stat-num" id="statPendientes" data-testid="stat-pendientes">—</div>
+                        <div class="stat-label">Pendientes</div>
+                    </div>
+                    <div class="stat-card vencida">
+                        <div class="stat-num" id="statVencidas" data-testid="stat-vencidas">—</div>
+                        <div class="stat-label">Vencidas</div>
+                    </div>
+                    <div class="stat-card pagada">
+                        <div class="stat-num" id="statPagadas" data-testid="stat-pagadas">—</div>
+                        <div class="stat-label">Pagadas</div>
+                    </div>
+                    <div class="stat-card deuda">
+                        <div class="stat-num" id="statDeuda" data-testid="stat-deuda">—</div>
+                        <div class="stat-label">Deuda total</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <span class="card-title">Estado de cuenta</span>
+                        <button class="btn btn-secondary btn-sm" onclick="cargarMisCuotas()">Actualizar</button>
+                    </div>
+                    <div class="card-body" style="padding:16px;">
+                        <div id="mpLinkResult" data-testid="mp-link-result"></div>
+                        <div id="mpPollingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;">
+                            <div style="background:#fff;border-radius:16px;padding:36px 32px;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+                                <div class="spinner" style="width:40px;height:40px;border-width:4px;margin:0 auto 20px;" aria-hidden="true"></div>
+                                <p id="mpPollingMsg" style="font-size:15px;color:#2d3748;margin-bottom:20px;">Esperando confirmación de pago...</p>
+                                <p style="font-size:13px;color:#718096;margin-bottom:20px;">Completá el pago en la ventana que se abrió y volvé acá. La cuota se actualizará sola.</p>
+                                <button class="btn btn-ghost btn-sm" onclick="cerrarPolling()">Cancelar</button>
+                            </div>
+                        </div>
+                        <div id="listaCuotas" data-testid="lista-cuotas">
+                            <div class="alert alert-info">Cargando cuotas...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cuotasTabHistorial" style="display:none;">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Filtrar por fecha</span></div>
+                    <div class="card-body" style="padding:14px;">
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+                            <div class="form-group" style="margin:0;">
+                                <label class="form-label">Desde</label>
+                                <input class="form-control" type="date" id="histDesde">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label class="form-label">Hasta</label>
+                                <input class="form-control" type="date" id="histHasta">
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="cargarHistorial()">Buscar</button>
+                        </div>
+                        <div id="listaHistorial" style="margin-top:14px;">
+                            <div class="alert alert-info">Cargando historial...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- secHistorial: vacío para no romper código antiguo que pueda referenciarlo. -->
+        <div id="secHistorial" class="section"></div>
+
+        <!-- ============ MI PROGRESO ============ -->
+        <div id="secProgreso" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Mi progreso</h1>
+                <p class="page-subtitle">Notas por unidad y sección, promedios y áreas a reforzar</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card pagada">
+                    <div class="stat-num" id="progPromGeneral">—</div>
+                    <div class="stat-label">Promedio general</div>
+                </div>
+                <div class="stat-card pendiente">
+                    <div class="stat-num" id="progTotalNotas">—</div>
+                    <div class="stat-label">Notas registradas</div>
+                </div>
+                <div class="stat-card deuda">
+                    <div class="stat-num" id="progPromGrammar">—</div>
+                    <div class="stat-label">Grammar</div>
+                </div>
+                <div class="stat-card deuda">
+                    <div class="stat-num" id="progPromVocab">—</div>
+                    <div class="stat-label">Vocabulary</div>
+                </div>
+                <div class="stat-card deuda">
+                    <div class="stat-num" id="progPromSpeak">—</div>
+                    <div class="stat-label">Speaking</div>
+                </div>
+                <div class="stat-card deuda">
+                    <div class="stat-num" id="progPromListen">—</div>
+                    <div class="stat-label">Listening</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header flex-between">
+                    <span class="card-title">Notas por unidad</span>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarProgreso()">Actualizar</button>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div id="progresoDetalle">
+                        <div class="alert alert-info" style="margin:14px;">Cargando progreso...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ CALENDARIO DEL ALUMNO ============ -->
+        <div id="secCalendario" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Calendario</h1>
+                <p class="page-subtitle">Tus clases y eventos importantes del instituto</p>
+            </div>
+
+            <div class="filter-buttons" style="margin-bottom:14px;">
+                <button type="button" class="filter-btn active" data-cal-tab="proximas"
+                        onclick="switchCalendarioAlumno('proximas')">Próximas clases</button>
+                <button type="button" class="filter-btn" data-cal-tab="eventos"
+                        onclick="switchCalendarioAlumno('eventos')">Eventos del instituto</button>
+            </div>
+
+            <div id="calTabProximas">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Próximas clases de tu curso</span></div>
+                    <div class="card-body" style="padding:14px;">
+                        <div id="listaClasesAlumno"><div class="alert alert-info">Cargando clases...</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="calTabEventos" style="display:none;">
+                <div id="alertasEventos"></div>
+
+                <div class="filter-group">
+                    <div class="filter-row">
+                        <span class="filter-label">Tipo</span>
+                        <div class="filter-buttons" id="filtroTipoEventosAlumno">
+                            <button type="button" class="filter-btn active" data-tipo="">Todos</button>
+                            <button type="button" class="filter-btn" data-tipo="feriado">Feriados</button>
+                            <button type="button" class="filter-btn" data-tipo="conmemorativo">Conmemorativos</button>
+                            <button type="button" class="filter-btn" data-tipo="intercambio">Intercambios</button>
+                            <button type="button" class="filter-btn" data-tipo="evento">Eventos</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Próximos eventos</span></div>
+                    <div class="card-body" style="padding:0;">
+                        <div id="listaEventosAlumno"><div class="alert alert-info" style="margin:14px;">Cargando eventos...</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ INSTITUCIONAL (QUIÉNES SOMOS) ============ -->
+        <div id="secInstitucional" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Quiénes somos</h1>
+                <p class="page-subtitle">Conocé el instituto</p>
+            </div>
+
+            <div class="filter-buttons" style="margin-bottom:14px;">
+                <button type="button" class="filter-btn active" data-inst-tab="quienes"
+                        onclick="switchInstitucional('quienes')">Quiénes somos</button>
+                <button type="button" class="filter-btn" data-inst-tab="mision"
+                        onclick="switchInstitucional('mision')">Misión y Visión</button>
+                <button type="button" class="filter-btn" data-inst-tab="historia"
+                        onclick="switchInstitucional('historia')">Nuestra Historia</button>
+                <button type="button" class="filter-btn" data-inst-tab="sede"
+                        onclick="switchInstitucional('sede')">Nuestra Sede</button>
+            </div>
+
+            <div class="card">
+                <div class="card-body" style="padding:20px;">
+                    <div id="instTabQuienes">
+                        <h2 style="margin:0 0 10px 0;">AMICANA</h2>
+                        <p style="line-height:1.6;color:#2d3748;">AMICANA es uno de los Centros Binacionales Argentino-Norteamericanos asociados a la Embajada de Estados Unidos en Argentina. Ofrecemos cursos de inglés general, conversación, exámenes internacionales y programas especiales para adolescentes y adultos.</p>
+                    </div>
+                    <div id="instTabMision" style="display:none;">
+                        <h2 style="margin:0 0 10px 0;">Misión y Visión</h2>
+                        <p style="line-height:1.6;"><strong>Misión:</strong> promover el aprendizaje del idioma inglés y el intercambio cultural entre Argentina y Estados Unidos, brindando educación de calidad y experiencias formativas.</p>
+                        <p style="line-height:1.6;"><strong>Visión:</strong> ser referentes en la enseñanza del inglés y la difusión cultural en la región de Cuyo, formando comunicadores globales.</p>
+                    </div>
+                    <div id="instTabHistoria" style="display:none;">
+                        <h2 style="margin:0 0 10px 0;">Nuestra Historia</h2>
+                        <p style="line-height:1.6;">El instituto fue fundado para fortalecer los lazos entre Argentina y Estados Unidos a través de la educación y el intercambio cultural. A lo largo de las décadas, miles de estudiantes han pasado por nuestras aulas.</p>
+                    </div>
+                    <div id="instTabSede" style="display:none;">
+                        <h2 style="margin:0 0 10px 0;">Nuestra Sede</h2>
+                        <p style="line-height:1.6;" id="sedeDireccion">—</p>
+                        <p style="line-height:1.6;"><strong>Teléfono:</strong> <span id="sedeTelefono">—</span></p>
+                        <p style="line-height:1.6;"><strong>Email:</strong> <span id="sedeEmail">—</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ MI PERFIL EDITABLE ============ -->
+        <div id="secPerfil" class="section">
+            <div class="page-header">
+                <h1 class="page-title">Mi perfil</h1>
+                <p class="page-subtitle">Solo podés cambiar tu teléfono y email</p>
+            </div>
+            <div id="bannerSinPassword" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;max-width:520px;margin-bottom:16px;align-items:center;gap:12px;">
+                <span style="font-size:20px;">🔑</span>
+                <div style="flex:1;">
+                    <strong style="color:#1e40af;">Definí una contraseña</strong>
+                    <p style="margin:2px 0 0;color:#3b82f6;font-size:14px;">Ingresaste con Google. Podés definir también una contraseña para entrar con email y contraseña.</p>
+                </div>
+                <button onclick="abrirModalSetearPassword()" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;white-space:nowrap;">Definir</button>
+            </div>
+            <div class="card" style="max-width:520px;">
+                <div class="card-body" style="padding:18px;">
+                    <form onsubmit="guardarPerfil(event)" novalidate>
+                        <div class="form-group">
+                            <label class="form-label">Nombre</label>
+                            <input class="form-control" id="perfilNombre" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">DNI</label>
+                            <input class="form-control" id="perfilDni" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Curso</label>
+                            <input class="form-control" id="perfilCurso" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Modalidad</label>
+                            <input class="form-control" id="perfilModalidad" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input class="form-control" type="email" id="perfilEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Teléfono<span id="telBadge" style="font-size:12px;font-weight:700;margin-left:6px;"></span></label>
+                            <input class="form-control" type="tel" id="perfilTelefono"
+                                   placeholder="+54 381 5550000">
+                            <span class="form-hint">8 a 15 dígitos. Se permite +, espacios y guiones.</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                        <div id="perfilMsg" style="margin-top:10px;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ============ MODAL: PAGAR CUOTA ============ -->
+<div class="modal-overlay" id="modalPagar">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+            <span class="modal-title">Pagar cuota</span>
+            <button class="modal-close" onclick="cerrarModal('modalPagar')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="modalPagarInfo" style="margin-bottom:16px;"></div>
+            <p style="font-size:13px;color:var(--gray-600);margin-bottom:16px;">
+                Seleccioná el método de pago:
+            </p>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <button class="btn-mp" id="btnMercadoPago" onclick="pagarConMP()">
+                    Pagar con MercadoPago
+                </button>
+                <div class="divider" style="margin:4px 0;"></div>
+                <p style="font-size:12px;color:var(--gray-400);text-align:center;">
+                    o generá un QR para pago en efectivo
+                </p>
+                <button class="btn btn-secondary" id="btnAbrirQRInline" onclick="toggleQRInline()">
+                    Generar QR
+                </button>
+
+                <div id="qrInlinePanel" style="display:none; margin-top:12px; padding:14px; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px;">
+                    <div class="form-group">
+                        <label class="form-label">Monto ($)</label>
+                        <input class="form-control" type="number" id="qrInlineMonto" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción / Concepto</label>
+                        <input class="form-control" type="text" id="qrInlineConcepto" placeholder="Ej: Cuota Marzo 2026">
+                    </div>
+                    <button class="btn btn-primary" style="width:100%;" onclick="generarQRInline()">Generar código QR</button>
+                    <div id="qrInlineResultado" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+        <div id="modalPagarMsg" data-testid="modal-pagar-msg" style="padding:0 16px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal('modalPagar')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===============================================================
+//  TOKEN STORAGE — sessionStorage canónico, fallback a localStorage
+// ===============================================================
+const TOKEN_KEY = 'token';
+
+function readToken() {
+    let t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) {
+        t = localStorage.getItem(TOKEN_KEY);
+        if (t) sessionStorage.setItem(TOKEN_KEY, t);
+    }
+    if (!t) {
+        const m = document.cookie.match(/(?:^|;\s*)amicana_restore=([^;]+)/);
+        if (m) {
+            t = decodeURIComponent(m[1]);
+            sessionStorage.setItem(TOKEN_KEY, t);
+            localStorage.setItem(TOKEN_KEY, t);
+            document.cookie = 'amicana_restore=; max-age=0; path=/';
+        }
+    }
+    return t;
+}
+function clearToken() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    document.cookie = 'amicana_restore=; max-age=0; path=/';
+}
+
+// ===============================================================
+//  INIT
+// ===============================================================
+
+let cuotaSeleccionada = null;
+let usuarioActual = null;
+
+window.addEventListener('load', () => {
+    // Si esta pestaña fue abierta por window.open() y volvió de MP, cerrarla
+    const _params = new URLSearchParams(window.location.search);
+    if (_params.get('pago') && window.opener) {
+        window.close();
+        return;
+    }
+
+    const token = readToken();
+    if (!token) { window.location.href = 'index.html'; return; }
+
+    try {
+        const p = JSON.parse(atob(token.split('.')[1]));
+        if (p.exp * 1000 < Date.now()) { logout(); return; }
+        if (p.rol !== 'alumno') { window.location.href = 'index.html'; return; }
+
+        usuarioActual = p;
+        document.getElementById('userName').textContent = p.sub;
+        document.getElementById('userAvatar').textContent = p.sub.charAt(0).toUpperCase();
+        document.getElementById('profileAvatar').textContent = p.sub.charAt(0).toUpperCase();
+
+        const ahora = new Date();
+        const hora = ahora.getHours();
+        const saludo = hora < 12 ? 'Buen día'
+                     : hora < 19 ? 'Buenas tardes'
+                     : 'Buenas noches';
+        document.getElementById('fechaHoy').textContent =
+            ahora.toLocaleDateString('es-AR', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            });
+
+        cargarPerfil(saludo);
+        cargarAvisos();
+        cargarProximasClases();
+        cargarCuotasDashboard();
+        cargarMisCuotas();
+        cargarProgresoDashboard();
+        alertaEventosProximos();
+
+        const params = new URLSearchParams(window.location.search);
+        const pagoResult = params.get('pago');
+        if (pagoResult) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            const prefId = sessionStorage.getItem('pending_preference_id')
+                        || localStorage.getItem('pending_preference_id');
+            sessionStorage.removeItem('pending_preference_id');
+            sessionStorage.removeItem('pending_cuota_id');
+            localStorage.removeItem('pending_preference_id');
+            localStorage.removeItem('pending_cuota_id');
+            mostrarSeccion('secCuotas');
+            if (pagoResult === 'exito' && prefId) {
+                api(`/verificar-pago/${prefId}`)
+                    .then(r => r.json())
+                    .then(() => { cargarMisCuotas(); cargarCuotasDashboard(); })
+                    .catch(() => {});
+                const mpMsg = document.getElementById('mpLinkResult');
+                if (mpMsg) mpMsg.innerHTML = '<div class="alert alert-success" style="margin-top:12px;">Pago aprobado. Tus cuotas fueron actualizadas.</div>';
+            } else if (pagoResult === 'error') {
+                const mpMsg = document.getElementById('mpLinkResult');
+                if (mpMsg) mpMsg.innerHTML = '<div class="alert alert-error" style="margin-top:12px;">El pago fue rechazado. Podés intentarlo de nuevo.</div>';
+            }
+        }
+    } catch { logout(); }
+});
+
+function logout() {
+    clearToken();
+    window.location.href = 'index.html';
+}
+
+// ===============================================================
+//  PHONE VALIDATION (Tarea 2)
+// ===============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    const telInput = document.getElementById('perfilTelefono');
+    const telBadge = document.getElementById('telBadge');
+    if (!telInput || !telBadge) return;
+    const _telRe = /^\+?[\d\s\-]{8,15}$/;
+    telInput.addEventListener('input', () => {
+        const v = telInput.value.trim();
+        if (!v) { telBadge.textContent = ''; return; }
+        const ok = _telRe.test(v);
+        telBadge.textContent = ok ? ' ✓' : ' ✗';
+        telBadge.style.color = ok ? '#22c55e' : '#ef4444';
+    });
+});
+
+// ===============================================================
+//  NAVIGATION
+// ===============================================================
+
+function showSection(id, el) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (el) el.classList.add('active');
+    document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===============================================================
+//  AUTH FETCH
+// ===============================================================
+
+async function api(url, opts = {}) {
+    const token = readToken();
+    if (!opts.headers) opts.headers = {};
+    if (!opts.headers['Content-Type'] && opts.method && opts.method !== 'GET') {
+        opts.headers['Content-Type'] = 'application/json';
+    }
+    opts.headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(url, opts);
+    if (res.status === 401) logout();
+    return res;
+}
+
+// ===============================================================
+//  PERFIL (cabecera del dashboard)
+// ===============================================================
+
+async function cargarPerfil(saludo) {
+    try {
+        const r = await api('/perfil');
+        if (!r.ok) return;
+        const d = await r.json();
+        const p = (d.data) || d.perfil || d;
+
+        document.getElementById('profileName').textContent = p.nombre || '—';
+        document.getElementById('profileAvatar').textContent = (p.nombre || '?').charAt(0).toUpperCase();
+        document.getElementById('userAvatar').textContent = (p.nombre || '?').charAt(0).toUpperCase();
+        document.getElementById('userCurso').textContent = p.curso || 'Alumno';
+
+        document.getElementById('bienvenida').textContent =
+            `${saludo || 'Hola'}, ${(p.nombre || '').split(' ')[0] || ''}`.trim();
+
+        const meta = [];
+        meta.push(p.email || '—');
+        if (p.dni)      meta.push(`DNI: ${p.dni}`);
+        if (p.telefono) meta.push(p.telefono);
+        if (p.curso)    meta.push(p.curso);
+        document.getElementById('profileMeta').innerHTML =
+            meta.map(item => `<span>${item}</span>`).join('<span style="margin:0 6px;color:#cbd5e0;">·</span>');
+    } catch { /* perfil silencioso */ }
+}
+
+// ===============================================================
+//  AVISOS
+// ===============================================================
+
+async function cargarAvisos() {
+    const cont = document.getElementById('listaAvisos');
+    try {
+        const r = await api('/avisos?limite=3');
+        if (!r.ok) { cont.innerHTML = '<p style="font-size:12px;color:#a0aec0;">No se pudieron cargar los avisos.</p>'; return; }
+        const d = await r.json();
+        const avisos = (d.data && d.data.avisos) || [];
+        if (!avisos.length) {
+            cont.innerHTML = '<p style="font-size:13px;color:#718096;">No hay avisos por ahora.</p>';
+            return;
+        }
+        cont.innerHTML = avisos.map(a => `
+            <div class="aviso-card ${a.importante ? 'importante' : ''}">
+                <div class="aviso-titulo">${a.titulo}</div>
+                <div class="aviso-meta">${a.fecha_publicacion || ''} · ${a.creado_por_nombre || 'Administración'}</div>
+                <div class="aviso-cuerpo">${a.contenido}</div>
+            </div>`).join('');
+    } catch {
+        cont.innerHTML = '<p style="font-size:12px;color:#a0aec0;">Sin conexión.</p>';
+    }
+}
+
+// ===============================================================
+//  PRÓXIMAS CLASES (dashboard)
+// ===============================================================
+
+async function cargarProximasClases() {
+    const cont = document.getElementById('listaClases');
+    try {
+        const r = await api('/calendario');
+        if (!r.ok) {
+            cont.innerHTML = '<p style="font-size:13px;color:#718096;">Sin datos de clases.</p>';
+            return;
+        }
+        const d = await r.json();
+        const data = d.data || d;
+        const clases = data.clases || [];
+        if (data.mensaje) {
+            cont.innerHTML = `<p style="font-size:13px;color:#718096;">${data.mensaje}</p>`;
+            return;
+        }
+        if (!clases.length) {
+            cont.innerHTML = '<p style="font-size:13px;color:#718096;">No hay clases programadas próximamente.</p>';
+            return;
+        }
+        const fmtFecha = (s) => {
+            const d = new Date(s + 'T00:00:00');
+            return d.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' });
+        };
+        const recortar = (s) => (s || '').slice(0, 5);
+        cont.innerHTML = clases.slice(0, 5).map(c => `
+            <div class="clase-row">
+                <span class="dia">${fmtFecha(c.fecha)}</span>
+                <span class="hora">${recortar(c.hora_inicio)} – ${recortar(c.hora_fin)}</span>
+                <span class="aula">${c.titulo}</span>
+            </div>`).join('');
+    } catch {
+        cont.innerHTML = '<p style="font-size:12px;color:#a0aec0;">No se pudieron cargar las clases.</p>';
+    }
+}
+
+// ===============================================================
+//  CUOTAS (dashboard resumen)
+// ===============================================================
+
+async function cargarCuotasDashboard() {
+    const cont = document.getElementById('dashCuotas');
+    try {
+        const r = await api('/mis-cuotas');
+        if (!r.ok) { cont.innerHTML = '<p style="font-size:13px;">Sin datos.</p>'; return; }
+        const d = await r.json();
+        cont.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+                <div class="progreso-item" style="background:#fef3c7;">
+                    <div class="progreso-num" style="color:#92400e;">${d.pendientes ?? 0}</div>
+                    <div class="progreso-label">Pendientes</div>
+                </div>
+                <div class="progreso-item" style="background:#fee2e2;">
+                    <div class="progreso-num" style="color:#991b1b;">${d.vencidas ?? 0}</div>
+                    <div class="progreso-label">Vencidas</div>
+                </div>
+            </div>
+            <p style="font-size:14px;margin-top:10px;text-align:center;">
+                Deuda total: <strong>$${(d.deuda_total ?? 0).toFixed(2)}</strong>
+            </p>`;
+    } catch {
+        cont.innerHTML = '<p style="font-size:12px;color:#a0aec0;">Error cargando cuotas.</p>';
+    }
+}
+
+// ===============================================================
+//  MIS CUOTAS DETALLE
+// ===============================================================
+
+async function cargarMisCuotas() {
+    const lista = document.getElementById('listaCuotas');
+    lista.innerHTML = '<div class="alert alert-info">Cargando...</div>';
+
+    try {
+        const r = await api('/mis-cuotas');
+        const d = await r.json();
+        if (!r.ok) { lista.innerHTML = `<div class="alert alert-error">${d.detail || 'Error'}</div>`; return; }
+
+        document.getElementById('statPendientes').textContent = d.pendientes ?? 0;
+        document.getElementById('statVencidas').textContent   = d.vencidas ?? 0;
+        document.getElementById('statPagadas').textContent    = d.pagadas ?? 0;
+        document.getElementById('statDeuda').textContent      = `$${d.deuda_total ?? 0}`;
+
+        if (!d.cuotas?.length) {
+            lista.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:24px;font-size:14px;">No tenés cuotas asignadas</p>';
+            return;
+        }
+        const orden = { vencida: 0, pendiente: 1, pagada: 2 };
+        const sorted = [...d.cuotas].sort((a, b) => (orden[a.estado] ?? 3) - (orden[b.estado] ?? 3));
+
+        lista.innerHTML = sorted.map(c => {
+            const isPagada = c.estado === 'pagada';
+            return `
+            <div class="cuota-card ${c.estado}">
+                <div class="cuota-card-top">
+                    <div class="cuota-concepto">${c.concepto}</div>
+                    <span class="badge badge-${c.estado}">${c.estado.toUpperCase()}</span>
+                </div>
+                <div class="cuota-meta">
+                    <span>$${parseFloat(c.monto).toFixed(2)}</span>
+                    <span>Vence: ${c.fecha_vencimiento}</span>
+                </div>
+                ${isPagada
+                    ? `<p style="font-size:13px;font-weight:700;color:var(--success);">Abonada</p>`
+                    : `<button class="btn btn-primary btn-sm" style="max-width:220px;"
+                              onclick="abrirPago(${c.id}, '${c.concepto.replace(/'/g,"\\'")}', ${c.monto})">
+                           Pagar esta cuota
+                       </button>`}
+            </div>`;
+        }).join('');
+    } catch (e) {
+        lista.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+    }
+}
+
+// ===============================================================
+//  HISTORIAL
+// ===============================================================
+
+async function cargarHistorial() {
+    const cont = document.getElementById('listaHistorial');
+    cont.innerHTML = '<div class="alert alert-info">Cargando...</div>';
+    const desde = document.getElementById('histDesde').value;
+    const hasta = document.getElementById('histHasta').value;
+    const qs = new URLSearchParams();
+    if (desde) qs.append('desde', desde);
+    if (hasta) qs.append('hasta', hasta);
+    try {
+        const r = await api(`/pagos/historial${qs.toString() ? '?' + qs : ''}`);
+        const d = await r.json();
+        if (!r.ok) { cont.innerHTML = `<div class="alert alert-error">${d.detail || 'Error'}</div>`; return; }
+        if (!d.pagos?.length) {
+            cont.innerHTML = '<p style="text-align:center;color:#a0aec0;">Sin pagos en el rango seleccionado.</p>';
+            return;
+        }
+        cont.innerHTML = `
+            <p style="font-size:13px;margin-bottom:8px;">
+                <strong>${d.total}</strong> pagos · Total: <strong>$${d.monto_total.toFixed(2)}</strong>
+            </p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                    <tr style="background:#f7fafc;">
+                        <th style="text-align:left;padding:8px;">Concepto</th>
+                        <th style="text-align:right;padding:8px;">Monto</th>
+                        <th style="text-align:right;padding:8px;">Vencimiento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${d.pagos.map(p => `
+                        <tr style="border-top:1px solid #edf2f7;">
+                            <td style="padding:8px;">${p.concepto}</td>
+                            <td style="padding:8px;text-align:right;">$${parseFloat(p.monto).toFixed(2)}</td>
+                            <td style="padding:8px;text-align:right;color:#718096;">${p.fecha_vencimiento}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+    } catch (e) {
+        cont.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+    }
+}
+
+// ===============================================================
+//  PERFIL EDITABLE
+// ===============================================================
+
+async function cargarPerfilEditable() {
+    try {
+        const r = await api('/perfil');
+        if (!r.ok) return;
+        const d = await r.json();
+        const p = d.data || d.perfil || d;
+        document.getElementById('perfilNombre').value    = p.nombre   || '';
+        document.getElementById('perfilDni').value       = p.dni      || '';
+        document.getElementById('perfilEmail').value     = p.email    || '';
+        document.getElementById('perfilTelefono').value  = p.telefono || '';
+        document.getElementById('perfilCurso').value     = p.curso    || '—';
+        document.getElementById('perfilModalidad').value = (p.modalidad || p.modalidad_curso || '—').toString();
+
+        const banner = document.getElementById('bannerSinPassword');
+        if (banner && p.auth_provider === 'google' && !p.tiene_password_local) {
+            banner.style.display = 'flex';
+        } else if (banner) {
+            banner.style.display = 'none';
+        }
+    } catch { /* silently */ }
+}
+
+function abrirModalSetearPassword() {
+    const existing = document.getElementById('setearPwForm');
+    if (existing) { existing.style.display = existing.style.display === 'none' ? 'block' : 'none'; return; }
+
+    const banner = document.getElementById('bannerSinPassword');
+    const form = document.createElement('div');
+    form.id = 'setearPwForm';
+    form.style.cssText = 'margin-top:10px;';
+    form.innerHTML = `
+        <input type="password" id="setearPwInput" placeholder="Mínimo 8 caracteres, con letras y números"
+               style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;box-sizing:border-box;">
+        <div id="setearPwMsg" style="margin-top:6px;font-size:13px;"></div>
+        <button onclick="confirmarSetearPassword()"
+                style="margin-top:8px;background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-size:13px;">
+            Guardar contraseña
+        </button>`;
+    banner.parentNode.insertBefore(form, banner.nextSibling);
+}
+
+async function confirmarSetearPassword() {
+    const pw  = document.getElementById('setearPwInput').value;
+    const msg = document.getElementById('setearPwMsg');
+    if (pw.length < 8 || !/[a-zA-Z]/.test(pw) || !/\d/.test(pw)) {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'La contraseña debe tener al menos 8 caracteres, una letra y un número.';
+        return;
+    }
+    try {
+        const r = await api('/perfil/setear-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+            msg.style.color = '#22c55e';
+            msg.textContent = '¡Contraseña establecida! Ya podés iniciar sesión con email y contraseña.';
+            document.getElementById('bannerSinPassword').style.display = 'none';
+            setTimeout(() => { const f = document.getElementById('setearPwForm'); if (f) f.remove(); }, 2500);
+        } else {
+            msg.style.color = '#ef4444';
+            msg.textContent = d.mensaje || d.detail || 'No se pudo guardar la contraseña.';
+        }
+    } catch {
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Error de red. Verificá que el servidor esté corriendo.';
+    }
+}
+
+async function guardarPerfil(e) {
+    e.preventDefault();
+    const msg = document.getElementById('perfilMsg');
+    msg.innerHTML = '';
+    const body = {
+        email: document.getElementById('perfilEmail').value,
+        telefono: document.getElementById('perfilTelefono').value || null,
+    };
+    try {
+        const r = await api('/perfil', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        if (r.ok) {
+            msg.innerHTML = `<div class="alert alert-success">${d.mensaje || 'Perfil actualizado'}</div>`;
+        } else {
+            msg.innerHTML = `<div class="alert alert-error">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error al guardar'}</div>`;
+        }
+    } catch (err) {
+        msg.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+    }
+}
+
+// ===============================================================
+//  CHATBOT (apertura programática)
+// ===============================================================
+
+function abrirChatbotParaPagar() {
+    const launcher = document.querySelector('.chatbot-launcher, [data-chatbot-launcher], #chatbot-launcher');
+    if (launcher) { launcher.click(); return; }
+    showSection('secCuotas', null);
+}
+
+// ===============================================================
+//  PAGAR CUOTA (modal)
+// ===============================================================
+
+function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<div class="alert alert-${type}" style="margin-top:8px;">${text}</div>`;
+}
+
+function abrirPago(id, concepto, monto) {
+    cuotaSeleccionada = { id, concepto, monto };
+    document.getElementById('modalPagarInfo').innerHTML = `
+        <div class="reporte">
+            <p><strong>Cuota:</strong> ${concepto}</p>
+            <p><strong>Monto:</strong> <strong style="font-size:18px;color:var(--dark);">$${parseFloat(monto).toFixed(2)}</strong></p>
+        </div>`;
+    document.getElementById('modalPagarMsg').innerHTML = '';
+    abrirModal('modalPagar');
+}
+
+async function pagarConMP() {
+    if (!cuotaSeleccionada) return;
+    const btn = document.getElementById('btnMercadoPago');
+    btn.disabled = true;
+    btn.textContent = 'Generando link...';
+
+    // Abrir ventana ANTES del await para mantener el contexto de gesto de usuario
+    const mpWindow = window.open('about:blank', '_blank');
+
+    try {
+        const r = await api(`/pagar-cuota/${cuotaSeleccionada.id}`, { method: 'POST' });
+        const d = await r.json();
+        if (r.ok && d.init_point) {
+            cerrarModal('modalPagar');
+            mpWindow.location.href = d.init_point;
+            iniciarPollingPago(cuotaSeleccionada.id, cuotaSeleccionada.concepto);
+        } else {
+            mpWindow.close();
+            showMsg('modalPagarMsg', d.detail || 'No se pudo generar el link de pago', 'error');
+        }
+    } catch (e) {
+        mpWindow.close();
+        showMsg('modalPagarMsg', 'Error: ' + e.message, 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Pagar con MercadoPago';
+}
+
+// ===============================================================
+//  POLLING DE PAGO (espera confirmación MP sin salir de la página)
+// ===============================================================
+
+let _pollingInterval = null;
+
+function iniciarPollingPago(cuotaId, concepto) {
+    const overlay = document.getElementById('mpPollingOverlay');
+    const msg = document.getElementById('mpPollingMsg');
+    if (overlay) overlay.style.display = 'flex';
+    if (msg) msg.textContent = `Esperando confirmación de pago de "${concepto}"...`;
+
+    let intentos = 0;
+    const maxIntentos = 40; // 40 × 3s = 2 min
+
+    _pollingInterval = setInterval(async () => {
+        intentos++;
+        try {
+            const r = await api('/mis-cuotas');
+            const d = await r.json();
+            const cuota = (d.cuotas || []).find(c => c.id === cuotaId);
+            if (cuota && cuota.estado === 'pagada') {
+                clearInterval(_pollingInterval);
+                cerrarPolling();
+                cargarMisCuotas();
+                cargarCuotasDashboard();
+                mostrarSeccion('secCuotas');
+                const mpMsg = document.getElementById('mpLinkResult');
+                if (mpMsg) mpMsg.innerHTML = '<div class="alert alert-success" style="margin-top:12px;">¡Pago aprobado! Tu cuota fue actualizada.</div>';
+            }
+        } catch (_) {}
+
+        if (intentos >= maxIntentos) {
+            clearInterval(_pollingInterval);
+            cerrarPolling();
+        }
+    }, 3000);
+}
+
+function cerrarPolling() {
+    if (_pollingInterval) clearInterval(_pollingInterval);
+    const overlay = document.getElementById('mpPollingOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+// ===============================================================
+//  QR INLINE (dentro del modal Pagar)
+// ===============================================================
+
+function toggleQRInline() {
+    const panel = document.getElementById('qrInlinePanel');
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+
+    if (!visible && cuotaSeleccionada) {
+        document.getElementById('qrInlineMonto').value    = cuotaSeleccionada.monto    || '';
+        document.getElementById('qrInlineConcepto').value = cuotaSeleccionada.concepto || '';
+    }
+}
+
+async function generarQRInline() {
+    const monto    = parseFloat(document.getElementById('qrInlineMonto').value);
+    const concepto = document.getElementById('qrInlineConcepto').value.trim();
+    const out      = document.getElementById('qrInlineResultado');
+    if (!monto || monto <= 0) {
+        out.innerHTML = `<div class="alert alert-error">Ingresá un monto válido.</div>`;
+        return;
+    }
+    if (!concepto) {
+        out.innerHTML = `<div class="alert alert-error">Ingresá una descripción.</div>`;
+        return;
+    }
+    out.innerHTML = `<div class="alert alert-info">Generando QR...</div>`;
+    try {
+        const r = await api('/generar-qr', {
+            method: 'POST',
+            body: JSON.stringify({ monto, descripcion: concepto }),
+        });
+        const d = await r.json();
+        if (!r.ok) {
+            out.innerHTML = `<div class="alert alert-error">${(d.detail && (d.detail.mensaje || d.detail)) || 'No se pudo generar el QR'}</div>`;
+            return;
+        }
+        out.innerHTML = `
+            <div style="text-align:center;">
+                <img src="data:image/png;base64,${d.qr_base64}" alt="Código QR"
+                     style="max-width:240px; border:1px solid #e2e8f0; border-radius:6px; padding:8px; background:#fff;">
+                <p style="font-size:12px; color:#4a5568; margin-top:8px;">Escaneá el código para abonar.</p>
+                ${d.alias ? `<p style="font-size:12px;color:#4a5568;margin:0;">Alias: <strong>${d.alias}</strong></p>` : ''}
+            </div>`;
+    } catch (e) {
+        out.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+    }
+}
+
+// ===============================================================
+//  HELPERS
+// ===============================================================
+
+function escapeHtml(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+// ===============================================================
+//  TABS — Mis Cuotas (estado / historial)
+// ===============================================================
+
+function switchCuotasTab(tab) {
+    document.querySelectorAll('[data-cuotas-tab]').forEach(b =>
+        b.classList.toggle('active', b.dataset.cuotasTab === tab));
+    document.getElementById('cuotasTabEstado').style.display    = tab === 'estado'    ? '' : 'none';
+    document.getElementById('cuotasTabHistorial').style.display = tab === 'historial' ? '' : 'none';
+    if (tab === 'historial') cargarHistorial();
+}
+
+function abrirHistorialDesdeAccesos() {
+    const navMisCuotas = [...document.querySelectorAll('.nav-item')].find(n =>
+        n.textContent.trim() === 'Mis Cuotas');
+    if (navMisCuotas) navMisCuotas.click();
+    setTimeout(() => switchCuotasTab('historial'), 0);
+}
+
+// ===============================================================
+//  MI PROGRESO
+// ===============================================================
+
+async function cargarProgresoDashboard() {
+    try {
+        const r = await api('/mi-progreso');
+        if (!r.ok) return;
+        const d = await r.json();
+        const data = d.data || {};
+        const cont = document.getElementById('dashProgreso');
+        if (!cont) return;
+        if (!data.total_notas) {
+            cont.innerHTML = `<p style="font-size:13px;color:#4a5568;">Aún no hay notas registradas.</p>`;
+            return;
+        }
+        cont.innerHTML = `
+            <p style="font-size:13px;color:#4a5568;margin:0 0 6px 0;">Promedio general</p>
+            <p style="font-size:28px;font-weight:700;color:#1e40af;margin:0;">
+                ${data.promedio_general ?? '—'}
+                <span style="font-size:14px;color:#4a5568;font-weight:400;">/ 10</span>
+            </p>
+            <p style="font-size:12px;color:#4a5568;margin-top:6px;">
+                ${data.total_notas} notas en ${(data.progreso_por_unidad || []).length} unidades
+            </p>`;
+    } catch {}
+}
+
+async function cargarProgreso() {
+    const r = await api('/mi-progreso');
+    const d = await r.json();
+    if (!r.ok) {
+        document.getElementById('progresoDetalle').innerHTML =
+            `<div class="alert alert-error" style="margin:14px;">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error'}</div>`;
+        return;
+    }
+    const data = d.data || {};
+
+    document.getElementById('progPromGeneral').textContent = data.promedio_general ?? '—';
+    document.getElementById('progTotalNotas').textContent  = data.total_notas      ?? 0;
+    const ps = data.promedio_por_seccion || {};
+    document.getElementById('progPromGrammar').textContent = ps.grammar    ?? '—';
+    document.getElementById('progPromVocab').textContent   = ps.vocabulary ?? '—';
+    document.getElementById('progPromSpeak').textContent   = ps.speaking   ?? '—';
+    document.getElementById('progPromListen').textContent  = ps.listening  ?? '—';
+
+    const cont = document.getElementById('progresoDetalle');
+    const unidades = data.progreso_por_unidad || [];
+    if (!unidades.length) {
+        cont.innerHTML = `<div class="alert alert-info" style="margin:14px;">Aún no tenés notas registradas. Cuando tu profesor cargue tus calificaciones aparecerán acá.</div>`;
+        return;
+    }
+    const nombres = {grammar:'Grammar', vocabulary:'Vocabulary', speaking:'Speaking',
+                     listening:'Listening', writing:'Writing', reading:'Reading'};
+    cont.innerHTML = unidades.map(u => {
+        const secs = u.secciones || {};
+        const filasSec = Object.keys(nombres).map(k => {
+            const v = secs[k];
+            if (!v) return '';
+            return `<tr><td>${nombres[k]}</td><td><strong>${v.nota}</strong> / 10</td><td>${v.fecha || '—'}</td></tr>`;
+        }).join('');
+        const pp = (u.pain_points || []).map(p =>
+            `<li><strong>${nombres[p.seccion] || p.seccion}:</strong> ${escapeHtml(p.texto)}</li>`
+        ).join('');
+        return `
+        <div class="unidad-block" style="border-bottom:1px solid #e2e8f0; padding:14px 16px;">
+            <div class="flex-between" style="margin-bottom:10px;">
+                <h3 style="margin:0; font-size:15px;">Unidad ${u.numero} — ${escapeHtml(u.titulo)}</h3>
+                <span style="font-size:13px; color:#4a5568;">Promedio: <strong>${u.promedio ?? '—'}</strong> / 10</span>
+            </div>
+            <table class="data-table" style="margin-bottom:${pp ? '10px' : '0'};">
+                <thead><tr><th>Sección</th><th>Nota</th><th>Fecha</th></tr></thead>
+                <tbody>${filasSec || '<tr><td colspan="3" class="table-empty">Sin notas en esta unidad</td></tr>'}</tbody>
+            </table>
+            ${pp ? `<div style="background:#fff7ed; border-left:3px solid #f59e0b; padding:10px 12px; border-radius:4px;">
+                <strong style="font-size:13px;">Áreas a reforzar:</strong>
+                <ul style="margin:6px 0 0 16px; font-size:13px; color:#4a5568;">${pp}</ul>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// ===============================================================
+//  CALENDARIO DEL ALUMNO
+// ===============================================================
+
+let eventosAlumnoCache = [];
+let filtroTipoEventoAlumno = '';
+
+function switchCalendarioAlumno(tab) {
+    document.querySelectorAll('[data-cal-tab]').forEach(b =>
+        b.classList.toggle('active', b.dataset.calTab === tab));
+    document.getElementById('calTabProximas').style.display = tab === 'proximas' ? '' : 'none';
+    document.getElementById('calTabEventos').style.display  = tab === 'eventos'  ? '' : 'none';
+    if (tab === 'eventos' && !eventosAlumnoCache.length) cargarEventosAlumno();
+}
+
+async function cargarCalendarioAlumno() {
+    cargarProximasClasesDetallado();
+    cargarEventosAlumno();
+}
+
+async function cargarProximasClasesDetallado() {
+    const cont = document.getElementById('listaClasesAlumno');
+    try {
+        const r = await api('/calendario');
+        const d = await r.json();
+        if (!r.ok) {
+            cont.innerHTML = `<div class="alert alert-error">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error'}</div>`;
+            return;
+        }
+        const clases = (d.data && d.data.clases) || d.clases || [];
+        if (!clases.length) {
+            cont.innerHTML = `<div class="alert alert-info">No hay clases próximas programadas.</div>`;
+            return;
+        }
+        cont.innerHTML = `
+            <table class="data-table">
+                <thead><tr><th>Fecha</th><th>Hora</th><th>Curso</th><th>Título</th></tr></thead>
+                <tbody>${clases.map(c => `
+                    <tr>
+                        <td>${escapeHtml(c.fecha)}</td>
+                        <td>${escapeHtml(c.hora_inicio || '')} - ${escapeHtml(c.hora_fin || '')}</td>
+                        <td>${escapeHtml(c.curso || '—')}</td>
+                        <td><strong>${escapeHtml(c.titulo)}</strong>${c.descripcion ? `<br><small style="color:#666;">${escapeHtml(c.descripcion)}</small>` : ''}</td>
+                    </tr>`).join('')}</tbody>
+            </table>`;
+    } catch (e) {
+        cont.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+    }
+}
+
+async function cargarEventosAlumno() {
+    try {
+        const r = await api('/eventos');
+        const d = await r.json();
+        if (!r.ok) {
+            document.getElementById('listaEventosAlumno').innerHTML =
+                `<div class="alert alert-error" style="margin:14px;">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error'}</div>`;
+            return;
+        }
+        eventosAlumnoCache = (d.data && d.data.eventos) || [];
+
+        const hoy = new Date(); hoy.setHours(0,0,0,0);
+        const en3 = new Date(hoy); en3.setDate(en3.getDate() + 3);
+        const proximos = eventosAlumnoCache.filter(e => {
+            const x = new Date(e.fecha_inicio);
+            return x >= hoy && x <= en3;
+        });
+        const alertas = document.getElementById('alertasEventos');
+        alertas.innerHTML = proximos.length ? proximos.map(e => `
+            <div class="alert alert-warning" style="margin-bottom:10px;">
+                <strong>${escapeHtml(e.tipo).toUpperCase()}</strong> — ${escapeHtml(e.titulo)} (${escapeHtml(e.fecha_inicio)})
+                ${e.descripcion ? `<br><span style="font-size:12px;">${escapeHtml(e.descripcion)}</span>` : ''}
+            </div>`).join('') : '';
+
+        document.querySelectorAll('#filtroTipoEventosAlumno .filter-btn').forEach(b => {
+            b.onclick = () => {
+                document.querySelectorAll('#filtroTipoEventosAlumno .filter-btn').forEach(x =>
+                    x.classList.remove('active'));
+                b.classList.add('active');
+                filtroTipoEventoAlumno = b.dataset.tipo || '';
+                renderEventosAlumno();
+            };
+        });
+        renderEventosAlumno();
+    } catch (e) {
+        document.getElementById('listaEventosAlumno').innerHTML =
+            `<div class="alert alert-error" style="margin:14px;">Error: ${e.message}</div>`;
+    }
+}
+
+function renderEventosAlumno() {
+    const filtrados = eventosAlumnoCache.filter(e =>
+        !filtroTipoEventoAlumno || e.tipo === filtroTipoEventoAlumno);
+    const cont = document.getElementById('listaEventosAlumno');
+    if (!filtrados.length) {
+        cont.innerHTML = `<div class="alert alert-info" style="margin:14px;">Sin eventos en el rango.</div>`;
+        return;
+    }
+    cont.innerHTML = `
+        <table class="data-table">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Título</th></tr></thead>
+            <tbody>${filtrados.map(e => {
+                const fecha = e.fecha_fin && e.fecha_fin !== e.fecha_inicio
+                    ? `${e.fecha_inicio} → ${e.fecha_fin}` : e.fecha_inicio;
+                return `<tr>
+                    <td>${escapeHtml(fecha)}</td>
+                    <td><span class="badge badge-evt-${e.tipo}">${escapeHtml(e.tipo)}</span></td>
+                    <td><strong>${escapeHtml(e.titulo)}</strong>${e.descripcion ? `<br><small style="color:#666;">${escapeHtml(e.descripcion)}</small>` : ''}</td>
+                </tr>`;
+            }).join('')}</tbody>
+        </table>`;
+}
+
+async function alertaEventosProximos() {
+    try {
+        const r = await api('/eventos');
+        if (!r.ok) return;
+        const d = await r.json();
+        const eventos = (d.data && d.data.eventos) || [];
+        const hoy = new Date(); hoy.setHours(0,0,0,0);
+        const en3 = new Date(hoy); en3.setDate(en3.getDate() + 3);
+        const proximos = eventos.filter(e => {
+            const x = new Date(e.fecha_inicio);
+            return x >= hoy && x <= en3;
+        });
+        const cont = document.getElementById('alertasDashboard');
+        if (!cont || !proximos.length) return;
+        cont.innerHTML = proximos.map(e => `
+            <div class="alert alert-warning" style="margin-bottom:8px;">
+                <strong>Próximo:</strong> ${escapeHtml(e.titulo)} (${escapeHtml(e.fecha_inicio)})
+            </div>`).join('');
+    } catch {}
+}
+
+// ===============================================================
+//  INSTITUCIONAL (Quiénes somos)
+// ===============================================================
+
+function switchInstitucional(tab) {
+    document.querySelectorAll('[data-inst-tab]').forEach(b =>
+        b.classList.toggle('active', b.dataset.instTab === tab));
+    ['quienes','mision','historia','sede'].forEach(k => {
+        const id = 'instTab' + k.charAt(0).toUpperCase() + k.slice(1);
+        document.getElementById(id).style.display = (k === tab ? '' : 'none');
+    });
+    if (tab === 'sede') cargarDatosSede();
+}
+
+async function cargarDatosSede() {
+    try {
+        const r = await fetch('/configuracion/publica');
+        if (!r.ok) return;
+        const d = await r.json();
+        const p = (d.data && d.data.preferencias) || {};
+        document.getElementById('sedeDireccion').textContent = p.instituto_direccion || 'Mendoza, Argentina';
+        document.getElementById('sedeTelefono').textContent  = p.instituto_telefono  || '—';
+        document.getElementById('sedeEmail').textContent     = p.instituto_email     || '—';
+    } catch {}
+}
+
+// ===============================================================
+//  MODAL HELPERS
+// ===============================================================
+
+function abrirModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+function cerrarModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+}
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) cerrarModal(overlay.id);
+    });
+});
+</script>
+
+<!-- Chatbot widget — proxy FastAPI (mismo origen, sin CORS) -->
+<script src="/static/chatbot-widget.js"
+        data-webhook="/chatbot"></script>
+
+</body>
+</html>

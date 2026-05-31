@@ -1,0 +1,59 @@
+name: CI/CD
+
+# Pipeline:
+#   1. test   → corre la suite pytest en cada push y PR a main.
+#   2. deploy → si los tests pasan y el push fue a main, sube el backend
+#               a Railway con la CLI (railway up = build con el Dockerfile).
+#
+# Configuración requerida en el repo (Settings → Secrets and variables → Actions):
+#   - Secret  RAILWAY_TOKEN    → project token de Railway (Project → Settings → Tokens)
+#   - Variable RAILWAY_SERVICE → nombre del servicio backend en Railway
+#                                (opcional; default "amicana-backend")
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Instalar dependencias
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Correr tests
+        working-directory: backend
+        run: pytest tests/ -q
+
+  deploy:
+    name: Deploy a Railway
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy backend
+        run: railway up --service "${{ vars.RAILWAY_SERVICE || 'amicana-backend' }}" --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

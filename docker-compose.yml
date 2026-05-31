@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    # Variables sensibles (GROQ_API_KEY, CHATBOT_INTERNAL_KEY, etc.) se
+    # cargan desde backend/.env — nunca hardcodear secretos en este archivo.
+    env_file:
+      - ./backend/.env
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=https://chaffy-gamely-ramon.ngrok-free.dev
+      - GENERIC_TIMEZONE=America/Argentina/Buenos_Aires
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+    extra_hosts:
+      # Permite que n8n dentro del contenedor llegue a FastAPI en el host
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
+    driver: local
