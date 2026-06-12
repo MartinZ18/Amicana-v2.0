@@ -11,15 +11,18 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - N8N_HOST=localhost
+      - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
+      # En desarrollo local: http. En Railway: https (sobreescribir con N8N_PROTOCOL=https)
       - N8N_PROTOCOL=http
+      # WEBHOOK_URL debe ser la URL pública de n8n (ngrok local o Railway domain)
       - WEBHOOK_URL=https://chaffy-gamely-ramon.ngrok-free.dev
       - GENERIC_TIMEZONE=America/Argentina/Buenos_Aires
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
     extra_hosts:
-      # Permite que n8n dentro del contenedor llegue a FastAPI en el host
+      # Permite que n8n dentro del contenedor llegue a FastAPI en el host (desarrollo local)
+      # En Railway esto no aplica — usar el hostname privado Railway de FastAPI
       - "host.docker.internal:host-gateway"
     volumes:
       - n8n_data:/home/node/.n8n
