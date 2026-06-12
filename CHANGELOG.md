@@ -2,6 +2,11 @@
 
 ## [Sin publicar]
 
+### Agregado
+- `DEPLOY.md`: paso a paso para desplegar n8n (chatbot Ianna) como servicio
+  adicional en Railway, con volumen persistente y conexión al backend vía
+  `N8N_WEBHOOK_URL` / `CHATBOT_INTERNAL_KEY`.
+
 ### Cambiado
 - **Chatbot Ianna: LLM migrado de Gemini a Groq** (`llama-3.3-70b-versatile`, API OpenAI-compatible). El free tier de Gemini quedó en `limit: 0` por región y habilitar billing requería un pago no disponible; Groq es gratis y sin tarjeta.
   - Workflow n8n (`n8n/amicana-chatbot.json`): nodo `Gemini Router` → `Groq Router`; `Hydrate Session` ahora arma los `messages` en formato OpenAI; `Parse Intent` lee `choices[0].message.content`.
@@ -11,6 +16,8 @@
 - El chatbot caía siempre al mensaje genérico (FUERA_SCOPE) porque el LLM devolvía `429 quota exceeded` (`limit: 0`).
 
 ### Eliminado
+- `nixpacks.toml` — config muerta: `railway.toml` ya fija `builder = "DOCKERFILE"`
+  y Railway lo ignoraba por completo.
 - Restos del módulo de **OCR de facturas** (ya removido del código activo): dependencia `google-genai` de `requirements.txt`, variable `GEMINI_API_KEY` (`.env`, `.env.example` y boilerplate de tests), imágenes huérfanas en `uploads/` y bytecode stale de `gemini_ocr`/`ollama_ocr`/`facturas`. Se documentó en README, APIS.md, DEPLOY.md y CLAUDE.md. `Pillow` se conserva (lo usa la generación de QR de pagos).
 
 ---

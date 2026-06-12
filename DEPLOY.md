@@ -17,7 +17,7 @@ Railway permite desplegar el backend FastAPI + MySQL en la nube de forma gratuit
 1. Ingresá a [railway.app](https://railway.app) y hacé clic en **New Project**.
 2. Seleccioná **Deploy from GitHub repo**.
 3. Autorizá Railway para acceder a tu GitHub y seleccioná el repositorio `Amicana-2.0`.
-4. Railway detecta automáticamente la configuración de `railway.toml` y `nixpacks.toml`.
+4. Railway detecta automáticamente la configuración de `railway.toml` (que indica buildear con el `Dockerfile`).
 
 ---
 
@@ -51,7 +51,6 @@ En el servicio de FastAPI (no en MySQL), hacé clic en **Variables** y agregá:
 
 | Variable | Feature |
 |----------|---------|
-| `GROQ_API_KEY` | LLM del chatbot Ianna (la consume n8n vía `$env.GROQ_API_KEY`) |
 | `MP_ACCESS_TOKEN` | Pagos MercadoPago |
 | `MP_WEBHOOK_SECRET` | Validación de webhooks MP |
 | `GOOGLE_CLIENT_ID` | Login con Google |
@@ -59,6 +58,8 @@ En el servicio de FastAPI (no en MySQL), hacé clic en **Variables** y agregá:
 | `GOOGLE_REDIRECT_URI` | Login con Google — usar la URL pública de Railway |
 | `GOOGLE_POST_LOGIN_REDIRECT` | URL del frontend tras login Google |
 | `CORS_ORIGINS` | Orígenes CORS permitidos (usar URL pública de Railway) |
+| `N8N_WEBHOOK_URL` | Chatbot Ianna — URL del webhook de n8n. Ver Paso 8 |
+| `CHATBOT_INTERNAL_KEY` | Chatbot Ianna — clave compartida con n8n. Ver Paso 8 |
 
 ---
 
@@ -125,6 +126,73 @@ curl -X POST https://<tu-url-railway>/auth/login \
 
 ---
 
+## Paso 8 — Desplegar n8n (Chatbot Ianna)
+
+El chatbot Ianna necesita una instancia de n8n corriendo y accesible públicamente:
+el backend hace un POST a `N8N_WEBHOOK_URL` por cada mensaje. La forma más simple
+es desplegar n8n como **otro servicio dentro del mismo proyecto Railway**.
+
+### 8.1 — Crear el servicio
+
+1. En el proyecto Railway (el mismo que tiene el backend y MySQL), hacé clic en
+   **+ New** → **Empty Service**.
+2. **Settings → Source** → **Deploy from Docker Image** → `n8nio/n8n:latest`.
+
+### 8.2 — Variables de entorno del servicio n8n
+
+| Variable | Valor |
+|----------|-------|
+| `N8N_HOST` | dominio público que le asignes a este servicio (sin `https://`), ej. `amicana-n8n.up.railway.app` |
+| `N8N_PROTOCOL` | `https` |
+| `N8N_PORT` | `5678` |
+| `WEBHOOK_URL` | `https://<mismo-dominio>/` (con `/` al final) |
+| `GENERIC_TIMEZONE` | `America/Argentina/Buenos_Aires` |
+| `N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS` | `false` |
+| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `false` (el workflow lee `GROQ_API_KEY` vía `$env`) |
+| `GROQ_API_KEY` | tu API key de [console.groq.com](https://console.groq.com) |
+| `CHATBOT_INTERNAL_KEY` | la misma clave que vas a poner en el backend (ver 8.6) |
+
+### 8.3 — Volumen para persistencia
+
+Sin un volumen, n8n pierde los workflows importados en cada redeploy.
+
+1. Servicio n8n → **Settings → Volumes** → **+ New Volume**.
+2. Mount path: `/home/node/.n8n`.
+
+### 8.4 — Generar dominio público
+
+**Settings → Networking → Generate Domain**. n8n escucha en el puerto `5678`
+(`N8N_PORT`) — asegurate que **Target Port** sea `5678`.
+
+Anotá la URL generada, la necesitás en el paso 8.6.
+
+### 8.5 — Importar el workflow
+
+1. Abrí `https://<tu-dominio-n8n>` y completá el setup inicial (usuario admin).
+2. **Workflows → Import from File** → seleccioná `n8n/amicana-chatbot.json`.
+3. Activá el workflow (toggle **Active**).
+
+### 8.6 — Conectar el backend con n8n
+
+En el servicio **backend** (Variables), agregá:
+
+| Variable | Valor |
+|----------|-------|
+| `N8N_WEBHOOK_URL` | `https://<tu-dominio-n8n>/webhook/amicana-chatbot` |
+| `CHATBOT_INTERNAL_KEY` | la misma clave del paso 8.2 |
+
+Railway redeploya el backend automáticamente al guardar las variables.
+
+### 8.7 — Verificar
+
+Abrí el frontend (`https://<tu-url-railway>/app`), iniciá sesión y probá el
+widget del chatbot Ianna. Si responde "El asistente no está disponible", revisá:
+- Que el workflow esté **Active** en n8n.
+- Que `CHATBOT_INTERNAL_KEY` coincida en ambos servicios.
+- Logs del servicio n8n en Railway.
+
+---
+
 ## CI/CD con GitHub Actions
 
 El repo incluye `.github/workflows/deploy.yml`. En cada push y PR a `main` corre
@@ -178,3 +246,4 @@ servidor + navegador). Se ejecutan localmente con `npx playwright test` contra
 | `Table 'x' doesn't exist` | Schema no cargado | Ejecutar `BD_Amicana.sql` + migraciones contra el MySQL de Railway |
 | OAuth redirige a URL incorrecta | `GOOGLE_REDIRECT_URI` desactualizada | Actualizar la variable con la URL pública de Railway |
 | CORS error en el frontend | `CORS_ORIGINS` no incluye la URL de Railway | Agregar la URL pública a `CORS_ORIGINS` |
+| Chatbot responde "no disponible" | n8n no desplegado, workflow inactivo, o `N8N_WEBHOOK_URL`/`CHATBOT_INTERNAL_KEY` mal configurados | Ver Paso 8 — verificar que el workflow esté Active y que las claves coincidan en ambos servicios |
