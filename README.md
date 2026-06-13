@@ -8,7 +8,12 @@ Sistema integral de administración académica para el Instituto Cultural Argent
 
 ## Demo / Despliegue
 
-_(completar con la URL pública tras el deploy en Railway, ej. `https://tu-backend.up.railway.app/app`)_
+🔗 **App:** https://amicana-v20-production.up.railway.app/app/index.html
+🔗 **API docs (Swagger):** https://amicana-v20-production.up.railway.app/docs
+
+| Email | Password | Rol |
+|-------|----------|-----|
+| `admin@amicana.com` | `admin1234` | admin |
 
 ---
 
@@ -372,3 +377,7 @@ Para importar el workflow:
 ## Equipo
 
 **Martín Zamora** — martin.zamora004@gmail.com
+**Luciano Papagni** — lucianopapagni123@gmail.com
+**Milton Rivera** — ballafd@gmail.com
+**Franco Prolongo** — franklinelcrack3@gmail.com
+**Diego Toconas** — dtoconas78@gmail.com
