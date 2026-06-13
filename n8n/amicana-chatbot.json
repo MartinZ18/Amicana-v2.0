@@ -70,7 +70,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const apiResp = $input.first().json;\nconst body    = $('Get Session History').first().json;\nconst loaded  = (apiResp && apiResp.session) || null;\n\nconst session = loaded || { history: [], alumno_id: null, estado: 'sin_autenticar', intentos_auth: 0 };\n\nconst history       = session.history || [];\nconst session_state = session.estado || 'sin_autenticar';\nconst alumno_id     = session.alumno_id || null;\n\nconst systemPrompt = `Sos Ianna, la asistente virtual del Instituto AMICANA (Instituto Cultural Argentino Norteamericano). Atendes a alumnos y a personas interesadas en los cursos. Dirigite SIEMPRE a la persona de manera formal y cordial, tratandola de usted; manten las respuestas breves, claras y profesionales.\\n\\nResponde SIEMPRE con un JSON valido con exactamente estas claves: intent, params, response.\\n\\nINTENTS DISPONIBLES:\\nAUTH: la persona quiere identificarse, o pide informacion personal (cuotas, deuda, pagos) sin estar autenticada. Si menciona un numero de documento ponelo en params.dni; si menciona un correo ponelo en params.email.\\nESTADO: ya autenticada, quiere ver sus cuotas, deuda o estado de cuenta.\\nPAGAR: quiere pagar o abonar una cuota. Si indica cual, pone el numero en params.cuota_id.\\nCONFIRMAR: informa que ya realizo un pago. Si los menciona, pone params.cuota_id y params.comprobante.\\nCERRAR: se despide o da por terminada la conversacion.\\nFUERA_SCOPE: cualquier otra consulta (saludo, horarios, cursos, modalidades, examenes, inscripciones o dudas generales). Responde de forma util y formal en el campo response, usando SOLO esta informacion real:\\n  - Horarios: lunes a viernes de 8:30 a 21:00; sabados de 8:30 a 12:30.\\n  - Modalidades: presencial, virtual e hibrida.\\n  - Cursos: English A1 Beginners, B1 Intermediate, C1 Advanced y Conversation Class.\\n  - Examenes internacionales: ECECE (nivel A2), TOEIC Bridge (A2), TOEIC (B1) y TOEFL iBT (B2).\\n  - Inscripciones: de forma presencial en la sede o por este mismo chat.\\n  - Para consultar cuotas o pagar es necesario identificarse con documento o correo.\\n\\nREGLAS DE CONVERSACION (muy importantes):\\n- Aprovecha el historial: NO vuelvas a preguntar ni a repetir informacion ya intercambiada, y si ya saludaste no te presentes de nuevo.\\n- Al iniciar la conversacion la persona ya vio un saludo con un menu de opciones (consultar cuotas, pagar una cuota, informacion de cursos y examenes). Si elige una opcion (un numero, o frases como 'mis cuotas', 'pagar', 'cursos', 'examenes'), interpreta su intencion y avanza; nunca vuelvas a mostrar el menu completo.\\n- Si no entendes, pedi una aclaracion concreta y DISTINTA de la anterior; jamas repitas la misma frase dos veces seguidas.\\n- Si no esta autenticada y pide ESTADO, PAGAR o CONFIRMAR, usa AUTH y pedi documento o correo una sola vez por turno.\\n- No inventes datos que no figuren arriba; si no tenes el dato, indica que puede consultarlo en secretaria o en la sede.\\n- El campo response va siempre en espanol formal (trato de usted), en 1 a 3 oraciones.\\n\\nEstado de la sesion: ${session_state}\\nAlumno identificado: ${alumno_id || 'ninguno'}`;\n\nconst messages = [{ role: 'system', content: systemPrompt }]\n  .concat(history.map(h => ({ role: h.role === 'model' ? 'assistant' : 'user', content: (h.parts && h.parts[0] ? h.parts[0].text : '') })))\n  .concat([{ role: 'user', content: body.message }]);\n\nreturn [{\n  json: {\n    session_id: body.session_id,\n    message: body.message,\n    history: history,\n    alumno_id: alumno_id,\n    session_state: session_state,\n    intentos_auth: session.intentos_auth || 0,\n    messages: messages\n  }\n}];"
+        "jsCode": "const apiResp = $input.first().json;\nconst body    = $('Get Session History').first().json;\nconst loaded  = (apiResp && apiResp.session) || null;\n\nconst session = loaded || { history: [], alumno_id: null, estado: 'sin_autenticar', intentos_auth: 0 };\n\nconst history       = session.history || [];\nconst session_state = session.estado || 'sin_autenticar';\nconst alumno_id     = session.alumno_id || null;\n\nconst systemPrompt = `Sos Ianna, de la secretaria del Instituto AMICANA (Instituto Cultural Argentino Norteamericano). Atendes a alumnos y a personas interesadas en los cursos. Hablale a la persona de 'vos' (como se habla en Argentina), de forma cercana y cordial, como lo haria alguien de secretaria por chat. Mantene las respuestas cortas y directas: 1 o 2 oraciones, sin relleno.\\n\\nEvita sonar a bot: no uses frases hechas como 'Estoy aqui para ayudarte', 'No dudes en preguntar', 'Espero haber sido de ayuda' o 'Como asistente virtual', ni saludos repetidos.\\n\\nResponde SIEMPRE con un JSON valido con exactamente estas claves: intent, params, response.\\n\\nINTENTS DISPONIBLES:\\nAUTH: la persona quiere identificarse, o pide informacion personal (cuotas, deuda, pagos) sin estar autenticada. Si menciona un numero de documento ponelo en params.dni; si menciona un correo ponelo en params.email.\\nESTADO: ya autenticada, quiere ver sus cuotas, deuda o estado de cuenta.\\nPAGAR: quiere pagar o abonar una cuota. Si indica cual, pone el numero en params.cuota_id.\\nCONFIRMAR: informa que ya realizo un pago. Si los menciona, pone params.cuota_id y params.comprobante.\\nCERRAR: se despide o da por terminada la conversacion.\\nFUERA_SCOPE: cualquier otra consulta (saludo, horarios, cursos, modalidades, examenes, inscripciones o dudas generales). Responde en el campo response de forma util y natural, usando SOLO esta informacion real:\\n  - Horarios: lunes a viernes de 8:30 a 21:00; sabados de 8:30 a 12:30.\\n  - Modalidades: presencial, virtual e hibrida.\\n  - Cursos: English A1 Beginners, B1 Intermediate, C1 Advanced y Conversation Class.\\n  - Examenes internacionales: ECECE (nivel A2), TOEIC Bridge (A2), TOEIC (B1) y TOEFL iBT (B2).\\n  - Inscripciones: de forma presencial en la sede o por este mismo chat.\\n  - Para consultar cuotas o pagar es necesario identificarse con documento o correo.\\n\\nREGLAS DE CONVERSACION (muy importantes):\\n- Aprovecha el historial: NO vuelvas a preguntar ni a repetir informacion ya intercambiada, y si ya saludaste no te presentes de nuevo.\\n- Al iniciar la conversacion la persona ya vio un saludo con un menu de opciones (consultar cuotas, pagar una cuota, informacion de cursos y examenes). Si elige una opcion (un numero, o frases como 'mis cuotas', 'pagar', 'cursos', 'examenes'), interpreta su intencion y avanza; nunca vuelvas a mostrar el menu completo.\\n- Si no entendes, pedi una aclaracion concreta y DISTINTA de la anterior; jamas repitas la misma frase dos veces seguidas.\\n- Si no esta autenticada y pide ESTADO, PAGAR o CONFIRMAR, usa AUTH y pedi documento o correo una sola vez por turno.\\n- No inventes datos que no figuren arriba; si no tenes el dato, indica que puede consultarlo en secretaria o en la sede.\\n- El campo response va siempre en espanol, con 'vos', natural y breve (1 a 2 oraciones), como lo escribiria una persona y no un manual.\\n\\nEstado de la sesion: ${session_state}\\nAlumno identificado: ${alumno_id || 'ninguno'}`;\n\nconst messages = [{ role: 'system', content: systemPrompt }]\n  .concat(history.map(h => ({ role: h.role === 'model' ? 'assistant' : 'user', content: (h.parts && h.parts[0] ? h.parts[0].text : '') })))\n  .concat([{ role: 'user', content: body.message }]);\n\nreturn [{\n  json: {\n    session_id: body.session_id,\n    message: body.message,\n    history: history,\n    alumno_id: alumno_id,\n    session_state: session_state,\n    intentos_auth: session.intentos_auth || 0,\n    messages: messages\n  }\n}];"
       }
     },
     {
@@ -120,7 +120,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const resp = $input.first().json;\nconst cand = resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content;\nlet parsed;\nif (!cand) {\n  const apiErr = (resp.error && resp.error.message) ? resp.error.message : JSON.stringify(resp).slice(0, 300);\n  parsed = { intent: 'FUERA_SCOPE', params: {}, response: '[DIAG] Groq no respondio: ' + apiErr };\n} else {\n  try {\n    const clean = cand.replace(/```json?\\n?/g, '').replace(/```/g, '').trim();\n    parsed = JSON.parse(clean);\n  } catch (err) {\n    parsed = { intent: 'FUERA_SCOPE', params: {}, response: 'Disculpe, no pude procesar su consulta. ¿Podría reformularla, por favor?' };\n  }\n}\n\nconst prev = $('Hydrate Session').first().json;\nreturn [{\n  json: {\n    intent: (parsed.intent || 'FUERA_SCOPE').toUpperCase(),\n    params: parsed.params || {},\n    response: parsed.response || '',\n    session_id: prev.session_id,\n    message: prev.message,\n    history: prev.history,\n    alumno_id: prev.alumno_id,\n    session_state: prev.session_state,\n    intentos_auth: prev.intentos_auth\n  }\n}];"
+        "jsCode": "const resp = $input.first().json;\nconst cand = resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content;\nlet parsed;\nif (!cand) {\n  const apiErr = (resp.error && resp.error.message) ? resp.error.message : JSON.stringify(resp).slice(0, 300);\n  parsed = { intent: 'FUERA_SCOPE', params: {}, response: '[DIAG] Groq no respondio: ' + apiErr };\n} else {\n  try {\n    const clean = cand.replace(/```json?\\n?/g, '').replace(/```/g, '').trim();\n    parsed = JSON.parse(clean);\n  } catch (err) {\n    parsed = { intent: 'FUERA_SCOPE', params: {}, response: 'Disculpá, no entendí eso. ¿Lo podés decir de otra forma?' };\n  }\n}\n\nconst prev = $('Hydrate Session').first().json;\nconst params = parsed.params || {};\nif (params.dni) {\n  params.dni = String(params.dni).replace(/\\D/g, '');\n}\nif (params.email) {\n  params.email = String(params.email).trim().toLowerCase();\n}\nreturn [{\n  json: {\n    intent: (parsed.intent || 'FUERA_SCOPE').toUpperCase(),\n    params: params,\n    response: parsed.response || '',\n    session_id: prev.session_id,\n    message: prev.message,\n    history: prev.history,\n    alumno_id: prev.alumno_id,\n    session_state: prev.session_state,\n    intentos_auth: prev.intentos_auth\n  }\n}];"
       }
     },
     {
@@ -326,7 +326,7 @@
         60
       ],
       "parameters": {
-        "jsCode": "const apiResult = $input.first().json;\nconst prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nlet text;\n\nif (apiResult.ok && apiResult.alumno) {\n  const a = apiResult.alumno;\n  text = `¡Hola, ${a.nombre}! Te identifiqué correctamente. Podés consultar tus cuotas, pagar una cuota o confirmar un pago ya realizado.`;\n  session.estado = 'autenticado';\n  session.alumno_id = a.id;\n  session.intentos_auth = 0;\n} else {\n  session.intentos_auth = (session.intentos_auth || 0) + 1;\n  if (session.intentos_auth >= 3) {\n    text = 'No pude identificarte luego de 3 intentos. Comunicate con la secretaria de AMICANA. ¡Hasta luego!';\n    session.estado = 'cerrado';\n  } else {\n    text = `No encontré ningún alumno con esos datos (intento ${session.intentos_auth}/3). ¿Podés verificar tu DNI o email e intentar de nuevo?`;\n  }\n}\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+        "jsCode": "const apiResult = $input.first().json;\nconst prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nlet text;\n\nif (apiResult.ok && apiResult.alumno) {\n  const a = apiResult.alumno;\n  text = `¡Hola, ${a.nombre}! Ya te encontré. Contame: ¿querés ver tus cuotas, pagar alguna o avisarme que ya hiciste un pago?`;\n  session.estado = 'autenticado';\n  session.alumno_id = a.id;\n  session.intentos_auth = 0;\n} else {\n  session.intentos_auth = (session.intentos_auth || 0) + 1;\n  if (session.intentos_auth >= 3) {\n    text = 'No logro encontrarte con esos datos. Mejor escribile directo a secretaría para que te ayuden. ¡Hasta luego!';\n    session.estado = 'cerrado';\n  } else if (session.intentos_auth === 1) {\n    text = 'No encontré a ningún alumno con esos datos. ¿Me pasás tu DNI o el email con el que estás registrado?';\n  } else {\n    text = 'Sigo sin encontrar coincidencias. Fijate que el DNI o el email estén bien escritos, sin espacios ni puntos.';\n  }\n}\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
       }
     },
     {
@@ -544,20 +544,44 @@
         785
       ],
       "parameters": {
-        "jsCode": "const prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nconst text = prev.response || 'Puedo ayudarle con sus cuotas y pagos, y con información sobre cursos, modalidades y exámenes internacionales. ¿Sobre qué tema desea consultar?';\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+        "jsCode": "const prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nconst text = prev.response || 'Te puedo ayudar con tus cuotas y pagos, o con info de cursos, modalidades y exámenes internacionales. ¿Sobre qué tema querés saber?';\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
       }
     },
     {
-      "id": "node-save-session",
-      "name": "Save Session API",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "node-save-session-http",
+      "name": "Save Session — HTTP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
       "position": [
         1880,
-        400
+        540
       ],
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst sessionData = data._session;\n\nif (sessionData) {\n  try {\n    await $helpers.httpRequest({\n      method: 'POST',\n      url: `${$env.FASTAPI_BASE_URL}/chatbot/session`,\n      headers: {\n        'Content-Type': 'application/json',\n        'X-Chatbot-Key': $env.CHATBOT_INTERNAL_KEY || 'amicana-internal'\n      },\n      body: sessionData,\n      timeout: 8000\n    });\n  } catch(e) {\n    // non-fatal\n  }\n}\n\nreturn [{ json: {\n  text: data.text || 'Lo siento, ocurrió un error.',\n  qr_url: data.qr_url || null,\n  pdf_url: data.pdf_url || null\n} }];"
+        "method": "POST",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/chatbot/session",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Chatbot-Key",
+              "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json._session }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       }
     },
     {
@@ -766,7 +790,12 @@
       "main": [
         [
           {
-            "node": "Save Session API",
+            "node": "Save Session — HTTP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -777,7 +806,12 @@
       "main": [
         [
           {
-            "node": "Save Session API",
+            "node": "Save Session — HTTP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -788,7 +822,12 @@
       "main": [
         [
           {
-            "node": "Save Session API",
+            "node": "Save Session — HTTP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -799,7 +838,12 @@
       "main": [
         [
           {
-            "node": "Save Session API",
+            "node": "Save Session — HTTP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -810,7 +854,12 @@
       "main": [
         [
           {
-            "node": "Save Session API",
+            "node": "Save Session — HTTP",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
@@ -821,16 +870,10 @@
       "main": [
         [
           {
-            "node": "Save Session API",
+            "node": "Save Session — HTTP",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Save Session API": {
-      "main": [
-        [
+          },
           {
             "node": "Respond to Webhook",
             "type": "main",
