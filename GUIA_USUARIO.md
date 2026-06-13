@@ -14,9 +14,15 @@ Podés iniciar sesión con:
 
 Si no tenés cuenta, hacé clic en *Registrarme*, completá el formulario y aceptá los términos.
 
+![Pantalla de login](docs/etapa4/01_login.png)
+![Formulario de registro](docs/etapa4/02_registro.png)
+![Validación de email inválido en el registro](docs/etapa4/03_validacion_email_invalido.png)
+
 ---
 
 ## Rol: Alumno
+
+![Panel del alumno](docs/etapa4/05_alumno.png)
 
 ### Mis Cuotas
 Al ingresar ves la lista de tus cuotas con estado (Pendiente / Pagada / Vencida).
@@ -46,6 +52,8 @@ Hacé clic en tu nombre (arriba a la derecha) → *Perfil*. Podés actualizar te
 ---
 
 ## Rol: Administrador / Administrativo
+
+![Panel administrativo](docs/etapa4/06_admin.png)
 
 ### Alumnos
 - **Listar:** la tabla muestra todos los alumnos con filtro por texto.

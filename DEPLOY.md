@@ -16,7 +16,7 @@ Railway permite desplegar el backend FastAPI + MySQL en la nube de forma gratuit
 
 1. Ingresá a [railway.app](https://railway.app) y hacé clic en **New Project**.
 2. Seleccioná **Deploy from GitHub repo**.
-3. Autorizá Railway para acceder a tu GitHub y seleccioná el repositorio `Amicana-2.0`.
+3. Autorizá Railway para acceder a tu GitHub y seleccioná el repositorio recién creado.
 4. Railway detecta automáticamente la configuración de `railway.toml` (que indica buildear con el `Dockerfile`).
 
 ---
@@ -97,7 +97,7 @@ railway connect MySQL    # abre una sesión mysql; pegá el contenido de BD_Amic
 3. Una vez que aparezca `Application startup complete`, el sistema está listo.
 4. Hacé clic en **Settings** → **Domains** → **Generate Domain** para obtener la URL pública.
 
-La URL tendrá el formato: `https://proyecto-amicana-2-0-production.up.railway.app`
+La URL tendrá el formato: `https://<nombre-del-servicio>-production.up.railway.app`
 
 ---
 
@@ -148,9 +148,10 @@ es desplegar n8n como **otro servicio dentro del mismo proyecto Railway**.
 | `WEBHOOK_URL` | `https://<mismo-dominio>/` (con `/` al final) |
 | `GENERIC_TIMEZONE` | `America/Argentina/Buenos_Aires` |
 | `N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS` | `false` |
-| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `false` (el workflow lee `GROQ_API_KEY` vía `$env`) |
+| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | `false` (el workflow lee `GROQ_API_KEY`, `FASTAPI_BASE_URL` y `CHATBOT_INTERNAL_KEY` vía `$env`) |
 | `GROQ_API_KEY` | tu API key de [console.groq.com](https://console.groq.com) |
 | `CHATBOT_INTERNAL_KEY` | la misma clave que vas a poner en el backend (ver 8.6) |
+| `FASTAPI_BASE_URL` | URL pública del backend FastAPI desplegado en los pasos 1-5, **sin slash final** (ej. `https://tu-backend.up.railway.app`). Todos los nodos HTTP del workflow la usan para llamar al backend |
 
 ### 8.3 — Volumen para persistencia
 

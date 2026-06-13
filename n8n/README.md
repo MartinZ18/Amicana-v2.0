@@ -14,8 +14,8 @@ Estas variables se cargan en n8n desde `backend/.env` (el `docker-compose.yml` l
 | Variable | Descripción | Ejemplo |
 |---|---|---|
 | `GROQ_API_KEY` | Clave del LLM (Groq, gratis sin tarjeta — console.groq.com) | `gsk_...` |
-| `FASTAPI_BASE_URL` | URL base del backend FastAPI | `https://chaffy-gamely-ramon.ngrok-free.dev` |
-| `CHATBOT_INTERNAL_KEY` | Clave inter-servicio (`X-Chatbot-Key`) | `amicana-internal` |
+| `FASTAPI_BASE_URL` | URL pública del backend FastAPI, **sin slash final** (usada por todos los nodos HTTP del workflow) | `https://tu-backend.up.railway.app` |
+| `CHATBOT_INTERNAL_KEY` | Clave inter-servicio (`X-Chatbot-Key`), debe coincidir con la del backend | `amicana-internal` |
 
 > El LLM lo resuelve el nodo HTTP **Groq Router** (`https://api.groq.com/openai/v1/chat/completions`, modelo `llama-3.3-70b-versatile`, formato OpenAI). La key viaja en el header `Authorization: Bearer {{ $env.GROQ_API_KEY }}`.
 >

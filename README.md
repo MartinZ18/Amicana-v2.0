@@ -6,8 +6,15 @@ Sistema integral de administración académica para el Instituto Cultural Argent
 
 ---
 
+## Demo / Despliegue
+
+_(completar con la URL pública tras el deploy en Railway, ej. `https://tu-backend.up.railway.app/app`)_
+
+---
+
 ## Índice
 
+- [Demo / Despliegue](#demo--despliegue)
 - [Requisitos](#requisitos)
 - [Instalación desde cero](#instalación-desde-cero)
 - [Orden de arranque diario](#orden-de-arranque-diario)
@@ -17,6 +24,7 @@ Sistema integral de administración académica para el Instituto Cultural Argent
 - [n8n — Chatbot Ianna](#n8n--chatbot-ianna-opcional)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Roles y accesos](#roles-y-accesos)
+- [Documentación adicional](#documentación-adicional)
 
 ---
 
@@ -37,8 +45,8 @@ Sistema integral de administración académica para el Instituto Cultural Argent
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/MartinZ18/Amicana-2.0.git
-cd Amicana-2.0
+git clone https://github.com/<tu-usuario>/<tu-repo>.git
+cd <tu-repo>
 ```
 
 ### 2. Base de datos
@@ -46,7 +54,7 @@ cd Amicana-2.0
 Iniciá MySQL. Luego creá la base de datos con el schema:
 
 ```bash
-# Desde la raíz del proyecto (carpeta Amicana-2.0)
+# Desde la raíz del proyecto
 mysql -u root -p < database/BD_Amicana.sql
 ```
 
@@ -99,7 +107,7 @@ pip install -r requirements.txt
 ### 5. Dependencias de testing (Playwright)
 
 ```bash
-# Desde la raíz del proyecto (carpeta Amicana-2.0)
+# Desde la raíz del proyecto
 cd ..
 npm install
 npx playwright install chromium
@@ -288,7 +296,7 @@ Para importar el workflow:
 ## Estructura del proyecto
 
 ```
-Amicana-2.0/
+<tu-repo>/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              ← FastAPI: lifespan, CORS, routers, seed admin
@@ -350,12 +358,14 @@ Amicana-2.0/
 
 | Archivo | Contenido |
 |---------|-----------|
+| [`docs/documentacion_tecnica.md`](docs/documentacion_tecnica.md) | Arquitectura, módulos, modelo de datos, seguridad y decisiones técnicas |
 | [`CHANGELOG.md`](CHANGELOG.md) | Historial de releases por etapa |
 | [`APIS.md`](APIS.md) | Inventario de APIs externas y configuración |
 | [`GUIA_USUARIO.md`](GUIA_USUARIO.md) | Guía de uso por rol (alumno / admin) |
 | [`DEPLOY.md`](DEPLOY.md) | Despliegue en Railway paso a paso |
 | [`database/README.md`](database/README.md) | Instalación y upgrade de la base de datos |
 | [`tests/README.md`](tests/README.md) | Guía completa de testing con Playwright |
+| [`tests/actividad-03-regresion/INFORME.md`](tests/actividad-03-regresion/INFORME.md) | Reporte de pruebas de regresión (28 casos, CRUD/auth/validaciones/API externa) |
 
 ---
 

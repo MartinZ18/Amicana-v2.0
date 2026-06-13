@@ -41,7 +41,7 @@
       ],
       "parameters": {
         "method": "GET",
-        "url": "=https://proyecto-amicana-20-production.up.railway.app/chatbot/session/{{ $json.session_id }}",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/chatbot/session/{{ $json.session_id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -297,7 +297,7 @@
       ],
       "parameters": {
         "method": "GET",
-        "url": "=https://proyecto-amicana-20-production.up.railway.app/alumnos/buscar?{{ $json.params.dni ? 'dni=' + $json.params.dni : 'email=' + ($json.params.email || '') }}",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/alumnos/buscar?{{ $json.params.dni ? 'dni=' + $json.params.dni : 'email=' + ($json.params.email || '') }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -340,7 +340,7 @@
       ],
       "parameters": {
         "method": "GET",
-        "url": "=https://proyecto-amicana-20-production.up.railway.app/alumnos/{{ $json.alumno_id }}/cuotas",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/alumnos/{{ $json.alumno_id }}/cuotas",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -383,7 +383,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://proyecto-amicana-20-production.up.railway.app/pagar-cuota/{{ $('Parse Intent').first().json.params.cuota_id || 0 }}",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/pagar-cuota/{{ $('Parse Intent').first().json.params.cuota_id || 0 }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -424,7 +424,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://proyecto-amicana-20-production.up.railway.app/pagos/generar-factura-pdf",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/pagos/generar-factura-pdf",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -478,7 +478,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://proyecto-amicana-20-production.up.railway.app/pagos/confirmar-manual",
+        "url": "={{ $env.FASTAPI_BASE_URL }}/pagos/confirmar-manual",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -557,7 +557,7 @@
         400
       ],
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst sessionData = data._session;\n\nif (sessionData) {\n  try {\n    await $helpers.httpRequest({\n      method: 'POST',\n      url: 'https://proyecto-amicana-20-production.up.railway.app/chatbot/session',\n      headers: {\n        'Content-Type': 'application/json',\n        'X-Chatbot-Key': $env.CHATBOT_INTERNAL_KEY || 'amicana-internal'\n      },\n      body: sessionData,\n      timeout: 8000\n    });\n  } catch(e) {\n    // non-fatal\n  }\n}\n\nreturn [{ json: {\n  text: data.text || 'Lo siento, ocurrió un error.',\n  qr_url: data.qr_url || null,\n  pdf_url: data.pdf_url || null\n} }];"
+        "jsCode": "const data = $input.first().json;\nconst sessionData = data._session;\n\nif (sessionData) {\n  try {\n    await $helpers.httpRequest({\n      method: 'POST',\n      url: `${$env.FASTAPI_BASE_URL}/chatbot/session`,\n      headers: {\n        'Content-Type': 'application/json',\n        'X-Chatbot-Key': $env.CHATBOT_INTERNAL_KEY || 'amicana-internal'\n      },\n      body: sessionData,\n      timeout: 8000\n    });\n  } catch(e) {\n    // non-fatal\n  }\n}\n\nreturn [{ json: {\n  text: data.text || 'Lo siento, ocurrió un error.',\n  qr_url: data.qr_url || null,\n  pdf_url: data.pdf_url || null\n} }];"
       }
     },
     {
@@ -598,7 +598,7 @@
         60
       ],
       "parameters": {
-        "content": "## AMICANA Chatbot — Groq\n\n**Variables requeridas** (Settings → Variables):\n- `GROQ_API_KEY` = clave de console.groq.com (gratis, sin tarjeta)\n- `CHATBOT_INTERNAL_KEY` = amicana-internal\n\n**Opcional**:\n- `FASTAPI_BASE_URL` = URL base de FastAPI. Default: `http://host.docker.internal:8000` (Docker Desktop). Producción: `https://api.amicana.com`.\n\nEl flow persiste sesiones en BD vía `/chatbot/session` (no usa staticData).\nActivar workflow con el toggle arriba a la derecha.",
+        "content": "## AMICANA Chatbot — Groq\n\n**Variables requeridas** (Settings → Variables):\n- `GROQ_API_KEY` = clave de console.groq.com (gratis, sin tarjeta)\n- `CHATBOT_INTERNAL_KEY` = clave compartida con el backend (header X-Chatbot-Key)\n- `FASTAPI_BASE_URL` = URL pública del backend FastAPI, SIN slash final (ej: `https://tu-backend.up.railway.app`)\n\nEl flow persiste sesiones en BD vía `/chatbot/session` (no usa staticData).\nActivar workflow con el toggle arriba a la derecha.",
         "height": 220,
         "width": 360,
         "color": 4

@@ -6,8 +6,34 @@
 - `DEPLOY.md`: paso a paso para desplegar n8n (chatbot Ianna) como servicio
   adicional en Railway, con volumen persistente y conexión al backend vía
   `N8N_WEBHOOK_URL` / `CHATBOT_INTERNAL_KEY`.
+- `backend/.env.example`: documentadas `EMAIL_DOMAIN_WHITELIST` y
+  `CHATBOT_RATE_LIMIT`, ya usadas por el código pero no listadas antes.
+- `docs/documentacion_tecnica.md`: documentación técnica para la entrega final
+  (arquitectura, stack, módulos, modelo de datos de las 15 tablas, integración
+  con MercadoPago/Google OAuth/n8n+Groq, seguridad y validaciones, manejo de
+  errores, instalación local y decisiones técnicas relevantes).
+- `README.md`: sección "Demo / Despliegue" (placeholder para la URL pública de
+  Railway tras el deploy) y nuevas filas en "Documentación adicional"
+  (`docs/documentacion_tecnica.md`, informe de regresión).
+- `GUIA_USUARIO.md` y `docs/documentacion_tecnica.md`: capturas de pantalla
+  (`docs/etapa4/*.png`) de login, registro, validación de email, panel alumno,
+  panel admin y Swagger UI.
 
 ### Cambiado
+- `tests/INFORME.md` → `tests/actividad-03-regresion/INFORME.md` (coincide con
+  el árbol de carpetas documentado en `tests/README.md`). Se agregó la columna
+  "Resultado obtenido" por caso, precondiciones por funcionalidad crítica (FC) y
+  una sección "Evidencia de ejecución" (reporte HTML, screenshots, video, trace)
+  para cubrir el formato de reporte de regresión exigido en la entrega final.
+- **Preparación para repo nuevo / redeploy en Railway**: el workflow n8n
+  (`n8n/amicana-chatbot.json`) tenía hardcodeada la URL del backend del
+  deploy anterior (`proyecto-amicana-20-production.up.railway.app`) en 6
+  nodos HTTP. Ahora usan `{{ $env.FASTAPI_BASE_URL }}`, variable nueva
+  **requerida** en el servicio n8n (documentada en `n8n/README.md` y
+  `DEPLOY.md` paso 8.2). Sin esto, un dominio Railway nuevo dejaría al
+  chatbot apuntando al backend viejo.
+- `README.md` / `DEPLOY.md`: quitadas referencias al repo anterior
+  (`MartinZ18/Amicana-2.0`) — quedan genéricas para cualquier repo nuevo.
 - **Chatbot Ianna: LLM migrado de Gemini a Groq** (`llama-3.3-70b-versatile`, API OpenAI-compatible). El free tier de Gemini quedó en `limit: 0` por región y habilitar billing requería un pago no disponible; Groq es gratis y sin tarjeta.
   - Workflow n8n (`n8n/amicana-chatbot.json`): nodo `Gemini Router` → `Groq Router`; `Hydrate Session` ahora arma los `messages` en formato OpenAI; `Parse Intent` lee `choices[0].message.content`.
   - Nueva variable `GROQ_API_KEY` en `backend/.env` (la consume n8n vía `env_file` del `docker-compose.yml`).
@@ -16,6 +42,9 @@
 - El chatbot caía siempre al mensaje genérico (FUERA_SCOPE) porque el LLM devolvía `429 quota exceeded` (`limit: 0`).
 
 ### Eliminado
+- `backend/_test_db.py` — script de debug que probaba contraseñas comunes
+  contra MySQL local (`admin`, `1234`, `password`, ...), quedó commiteado
+  por error.
 - `nixpacks.toml` — config muerta: `railway.toml` ya fija `builder = "DOCKERFILE"`
   y Railway lo ignoraba por completo.
 - Restos del módulo de **OCR de facturas** (ya removido del código activo): dependencia `google-genai` de `requirements.txt`, variable `GEMINI_API_KEY` (`.env`, `.env.example` y boilerplate de tests), imágenes huérfanas en `uploads/` y bytecode stale de `gemini_ocr`/`ollama_ocr`/`facturas`. Se documentó en README, APIS.md, DEPLOY.md y CLAUDE.md. `Pillow` se conserva (lo usa la generación de QR de pagos).
