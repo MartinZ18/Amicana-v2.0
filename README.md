@@ -1,4 +1,24 @@
-# AMICANA 2.0 — Sistema de Gestión
+﻿# AMICANA 2.0 — Sistema de Gestión
+
+<p align="center">
+  <a href="https://amicana-v20-production.up.railway.app/app/index.html">
+    <img src="https://img.shields.io/badge/Live%20Demo-Online-brightgreen?style=for-the-badge&logo=railway&logoColor=white" />
+  </a>
+  <a href="https://amicana-v20-production.up.railway.app/docs">
+    <img src="https://img.shields.io/badge/API%20Docs-Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black" />
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat&logo=mysql&logoColor=white" />
+  <img src="https://img.shields.io/badge/MercadoPago-009EE3?style=flat&logo=mercadopago&logoColor=white" />
+  <img src="https://img.shields.io/badge/Google%20OAuth-4285F4?style=flat&logo=google&logoColor=white" />
+  <img src="https://img.shields.io/badge/n8n-EA4B71?style=flat&logo=n8n&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Deployed%20on-Railway-0B0D0E?style=flat&logo=railway&logoColor=white" />
+</p>
 
 Sistema integral de administración académica para el Instituto Cultural Argentino Norteamericano (AMICANA). Cubre gestión de cuotas, pagos con MercadoPago, calendario académico, progreso del alumno y chatbot institucional.
 
@@ -50,8 +70,8 @@ Sistema integral de administración académica para el Instituto Cultural Argent
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/<tu-usuario>/<tu-repo>.git
-cd <tu-repo>
+git clone https://github.com/MartinZ18/Amicana-v2.0.git
+cd Amicana-v2.0
 ```
 
 ### 2. Base de datos
@@ -381,3 +401,4 @@ Para importar el workflow:
 **Milton Rivera** — ballafd@gmail.com
 **Franco Prolongo** — franklinelcrack3@gmail.com
 **Diego Toconas** — dtoconas78@gmail.com
+
