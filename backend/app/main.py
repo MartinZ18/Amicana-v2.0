@@ -49,6 +49,15 @@ from .routers import chatbot_data as chatbot_data_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # En Railway (producción/staging), MP_WEBHOOK_SECRET es obligatoria: sin
+    # ella, /pagos/webhook acepta notificaciones de MercadoPago sin validar
+    # su firma. RAILWAY_ENVIRONMENT lo setea Railway automáticamente al desplegar.
+    if os.environ.get("RAILWAY_ENVIRONMENT") and not os.environ.get("MP_WEBHOOK_SECRET"):
+        logger.warning(
+            "⚠️⚠️⚠️  MP_WEBHOOK_SECRET no está configurada en un entorno de Railway. "
+            "El webhook de MercadoPago (/pagos/webhook) va a aceptar notificaciones "
+            "SIN validar su firma. Definí MP_WEBHOOK_SECRET antes de procesar pagos reales."
+        )
     try:
         conn = get_connection()
         cursor = conn.cursor()

@@ -416,7 +416,8 @@ async def webhook_mp(request: Request):
 
     # Validar firma HMAC-SHA256 de MercadoPago.
     # Si MP_WEBHOOK_SECRET no está configurado, se loguea la advertencia y
-    # se continúa (modo permisivo para no cortar integraciones en desarrollo).
+    # se continúa (modo permisivo — solo pensado para desarrollo local; en
+    # producción la variable es obligatoria, ver chequeo de arranque en main.py).
     x_sig = request.headers.get("x-signature", "")
     x_req = request.headers.get("x-request-id", "")
     import os as _os
@@ -426,6 +427,12 @@ async def webhook_mp(request: Request):
                 "Webhook MP rechazado: firma inválida payment_id=%s", payment_id
             )
             return {"ok": False, "error": "Firma inválida"}
+    else:
+        _log.getLogger("amicana").warning(
+            "Webhook MP aceptado SIN validar firma (MP_WEBHOOK_SECRET no configurado) "
+            "payment_id=%s — modo dev únicamente, nunca debería ocurrir en producción",
+            payment_id,
+        )
     from ..mercadopago_qr import _ESTADOS_MP
     from datetime import datetime
     
