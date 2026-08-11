@@ -13,7 +13,9 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY no está definida. Copiá .env.example a .env y configurala.")
 
-CHATBOT_INTERNAL_KEY = os.environ.get("CHATBOT_INTERNAL_KEY", "amicana-internal")
+CHATBOT_INTERNAL_KEY = os.environ.get("CHATBOT_INTERNAL_KEY")
+if not CHATBOT_INTERNAL_KEY:
+    raise RuntimeError("CHATBOT_INTERNAL_KEY no está definida. Copiá .env.example a .env y configurala.")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60

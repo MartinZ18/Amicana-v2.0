@@ -228,7 +228,7 @@ Copiá `backend/.env.example` a `backend/.env` y completá los valores.
 |----------|---------|-------|
 | `GROQ_API_KEY` | LLM del chatbot Ianna (vía n8n) | Gratis sin tarjeta — obtener en [console.groq.com](https://console.groq.com). Modelo `llama-3.3-70b-versatile` |
 | `MP_ACCESS_TOKEN` | Pagos con MercadoPago | Usar `TEST-...` para sandbox, `APP_USR-...` para producción |
-| `MP_WEBHOOK_SECRET` | Validación de firma en webhooks MP | Si está vacío, los webhooks se aceptan sin validar firma |
+| `MP_WEBHOOK_SECRET` | Validación de firma en webhooks MP | Si está vacío, los webhooks se aceptan sin validar firma — **modo dev únicamente, en producción esta variable es obligatoria** (ver [Seguridad](#seguridad)) |
 | `GOOGLE_CLIENT_ID` | Login con Google | Ver paso 7 de instalación |
 | `GOOGLE_CLIENT_SECRET` | Login con Google | Ver paso 7 de instalación |
 | `GOOGLE_REDIRECT_URI` | Login con Google | Debe coincidir exactamente con lo registrado en Google Console |
@@ -376,6 +376,17 @@ Para importar el workflow:
 | `admin` | Acceso total: cuotas, alumnos, cursos, pagos, eventos, reportes, configuración, auditoría |
 | `administrativo` | Igual que admin, sin módulo de auditoría |
 | `alumno` | Sus cuotas, pagar, chatbot, progreso, calendario |
+
+---
+
+## Seguridad
+
+- **Autenticación**: JWT firmado con `SECRET_KEY` (algoritmo HS256, expiración de 60 min) y contraseñas hasheadas con `bcrypt`. Ver [`backend/app/auth.py`](backend/app/auth.py). El endpoint interno del chatbot admite además una API key (`X-Chatbot-Key`) para llamadas server-to-server desde n8n, separada del login de usuarios y validada contra `CHATBOT_INTERNAL_KEY`.
+- **Webhooks de MercadoPago**: la notificación IPN en `/pagos/webhook` valida la firma HMAC-SHA256 que envía MercadoPago (`x-signature` / `x-request-id`) contra `MP_WEBHOOK_SECRET` antes de procesar el pago. Ver [`backend/app/services/mercadopago_client.py`](backend/app/services/mercadopago_client.py).
+  > ⚠️ **Si `MP_WEBHOOK_SECRET` está vacío, el webhook acepta notificaciones sin validar su firma.** Esto es un fallback pensado únicamente para desarrollo local — **en producción la variable es obligatoria**. El backend loguea un warning en cada notificación no validada, y en Railway (`RAILWAY_ENVIRONMENT` seteado) la app directamente **no arranca** si falta la variable (fail-closed).
+- **CORS**: orígenes permitidos configurados explícitamente vía `CORS_ORIGINS` (CSV de URLs). Sin esa variable, cae a una lista default de `localhost` + el dominio de producción — en un despliegue nuevo conviene definirla explícitamente en vez de depender del default.
+- **Secrets**: todas las credenciales (`SECRET_KEY`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `GOOGLE_CLIENT_SECRET`, `CHATBOT_INTERNAL_KEY`, etc.) se leen desde variables de entorno (`backend/.env`, nunca hardcodeadas en el repo). `SECRET_KEY` y `CHATBOT_INTERNAL_KEY` son obligatorias — si faltan, la app no arranca (`RuntimeError` explícito en `auth.py`).
+- **Auditoría**: los eventos de negocio (pagos, aprobaciones manuales, acciones admin) se loguean vía [`services/auditoria_service.py`](backend/app/services/auditoria_service.py). Nota: la tabla `auditoria` en BD se eliminó en la migración 004 — hoy es logging a stderr del backend, no un registro persistente consultable desde la app.
 
 ---
 
