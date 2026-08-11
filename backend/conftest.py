@@ -7,6 +7,7 @@ import os
 # Forzar antes de que pytest importe app.*
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("SECRET_KEY", "test_secret_key_for_pytest_only")
+os.environ.setdefault("CHATBOT_INTERNAL_KEY", "amicana-internal")
 os.environ.setdefault("MP_ACCESS_TOKEN", "TEST-fake-for-tests")
 
 # Credenciales de test — definir en .env.test (ver .env.test.example)
