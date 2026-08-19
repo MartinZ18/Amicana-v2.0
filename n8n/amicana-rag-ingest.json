@@ -1,0 +1,72 @@
+{
+  "name": "AMICANA RAG — Ingesta (FAQ + Cursos + Avisos)",
+  "nodes": [
+    {
+      "id": "node-manual-trigger",
+      "name": "Ejecutar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "node-ingest",
+      "name": "Fetch + Embed + Upsert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// n8n 2.x no expone $helpers ni fetch en el nodo Code: el cliente HTTP es this.helpers.\nconst helpers = this.helpers;\nconst BASE = $env.FASTAPI_BASE_URL;\nconst chatbotKey  = $env.CHATBOT_INTERNAL_KEY;\nconst geminiKey   = $env.GEMINI_API_KEY;\nconst supabaseUrl = $env.SUPABASE_URL;\nconst supabaseKey = $env.SUPABASE_SERVICE_ROLE_KEY;\n\nasync function get(path) {\n  return await helpers.httpRequest({\n    method: 'GET',\n    url: BASE + path,\n    headers: { 'X-Chatbot-Key': chatbotKey },\n    json: true,\n  });\n}\n\nconst [faqResp, cursosResp, avisosResp] = await Promise.all([\n  get('/chatbot/faq'),\n  get('/chatbot/cursos/info'),\n  get('/chatbot/avisos'),\n]);\n\nconst docs = [];\n\nfor (const item of (faqResp.data && faqResp.data.faq) || []) {\n  docs.push({\n    source: 'faq',\n    external_id: item.q,\n    content: `Pregunta: ${item.q}\\nRespuesta: ${item.a}`,\n  });\n}\n\nfor (const c of (cursosResp.data && cursosResp.data.cursos) || []) {\n  docs.push({\n    source: 'curso',\n    external_id: String(c.id),\n    content: `Curso: ${c.nombre}. ${c.descripcion || ''} Modalidad: ${c.modalidad}. Categoria: ${c.categoria}. Cuota mensual: $${c.monto_cuota}.`,\n  });\n}\n\nfor (const a of (avisosResp.data && avisosResp.data.avisos) || []) {\n  docs.push({\n    source: 'aviso',\n    external_id: String(a.id),\n    content: `Aviso (${a.fecha_publicacion}): ${a.titulo}. ${a.contenido}`,\n  });\n}\n\nlet upserted = 0;\nconst errors = [];\n\nfor (const doc of docs) {\n  try {\n    const embedResp = await helpers.httpRequest({\n      method: 'POST',\n      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${geminiKey}`,\n      headers: { 'Content-Type': 'application/json' },\n      body: {\n        model: 'models/gemini-embedding-001', outputDimensionality: 768,\n        content: { parts: [{ text: doc.content }] },\n      },\n      json: true,\n    });\n    const embedding = embedResp.embedding.values;\n\n    await helpers.httpRequest({\n      method: 'POST',\n      url: `${supabaseUrl}/rest/v1/documents?on_conflict=source,external_id`,\n      headers: {\n        apikey: supabaseKey,\n        Authorization: `Bearer ${supabaseKey}`,\n        'Content-Type': 'application/json',\n        Prefer: 'resolution=merge-duplicates',\n      },\n      body: {\n        source: doc.source,\n        external_id: doc.external_id,\n        content: doc.content,\n        embedding,\n        updated_at: new Date().toISOString(),\n      },\n      json: true,\n    });\n    upserted++;\n  } catch (e) {\n    errors.push({ doc: doc.external_id, error: e.message });\n  }\n}\n\nreturn [{ json: { upserted, total: docs.length, errors } }];"
+      }
+    },
+    {
+      "id": "node-sticky",
+      "name": "SETUP",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        60
+      ],
+      "parameters": {
+        "content": "## AMICANA RAG — Ingesta\n\nPuebla la tabla `documents` de Supabase con `/chatbot/faq`, `/chatbot/cursos/info` y `/chatbot/avisos`.\n\n**Variables requeridas** (Settings → Variables):\n- `CHATBOT_INTERNAL_KEY` (la misma del chatbot)\n- `GEMINI_API_KEY`\n- `SUPABASE_URL`\n- `SUPABASE_SERVICE_ROLE_KEY`\n\nVer `n8n/RAG-SETUP.md` para el SQL de Supabase (tabla + función `match_documents`).\n\nCorrer manual (\"Execute workflow\") cada vez que se agreguen avisos o cursos nuevos — es idempotente, se puede re-correr sin duplicar (upsert por `source, external_id`).",
+        "height": 260,
+        "width": 380,
+        "color": 4
+      }
+    }
+  ],
+  "connections": {
+    "Ejecutar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Fetch + Embed + Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "AMICANA"
+    },
+    {
+      "name": "RAG"
+    }
+  ]
+}
