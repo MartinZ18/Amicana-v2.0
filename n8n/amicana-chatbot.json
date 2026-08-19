@@ -15,7 +15,8 @@
         "path": "amicana-chatbot",
         "responseMode": "responseNode",
         "options": {}
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-get-history",
@@ -100,7 +101,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": {{ JSON.stringify($json.messages) }},\n  \"temperature\": 0.1,\n  \"max_tokens\": 512,\n  \"response_format\": { \"type\": \"json_object\" }\n}",
+        "jsonBody": "={\n  \"model\": \"openai/gpt-oss-120b\",\n  \"messages\": {{ JSON.stringify($json.messages) }},\n  \"temperature\": 0.1,\n  \"max_tokens\": 512,\n  \"response_format\": { \"type\": \"json_object\" }\n}",
         "options": {
           "response": {
             "response": {
@@ -544,7 +545,7 @@
         785
       ],
       "parameters": {
-        "jsCode": "const prev = $('Parse Intent').first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nconst text = prev.response || 'Te puedo ayudar con tus cuotas y pagos, o con info de cursos, modalidades y exámenes internacionales. ¿Sobre qué tema querés saber?';\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
+        "jsCode": "// Lee su propia entrada para conservar la respuesta del nodo RAG.\nconst prev = $input.first().json;\nconst session = { history: prev.history || [], alumno_id: prev.alumno_id, estado: prev.session_state || 'sin_autenticar', intentos_auth: prev.intentos_auth || 0 };\n\nconst text = prev.response || 'Te puedo ayudar con tus cuotas y pagos, o con info de cursos, modalidades y exámenes internacionales. ¿Sobre qué tema querés saber?';\n\nconst updated = (prev.history || []).concat(\n  { role: 'user',  parts: [{ text: prev.message }] },\n  { role: 'model', parts: [{ text: text }] }\n);\nconst MAX_TURNS = 10;\nsession.history = updated.slice(-MAX_TURNS * 2);\n\nreturn [{ json: { text, qr_url: null, pdf_url: null, session_id: prev.session_id, _session: { session_id: prev.session_id, alumno_id: session.alumno_id, estado: session.estado, intentos_auth: session.intentos_auth, history: session.history } } }];"
       }
     },
     {
@@ -626,6 +627,19 @@
         "height": 220,
         "width": 360,
         "color": 4
+      }
+    },
+    {
+      "id": "node-rag-answer",
+      "name": "RAG — Generate Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        785
+      ],
+      "parameters": {
+        "jsCode": "// n8n 2.x no expone $helpers ni fetch en el nodo Code: el cliente HTTP es this.helpers.\nconst helpers = this.helpers;\nconst prev = $input.first().json;\nlet ragError = null;\nconst geminiKey  = $env.GEMINI_API_KEY;\nconst supabaseUrl = $env.SUPABASE_URL;\nconst supabaseKey = $env.SUPABASE_SERVICE_ROLE_KEY;\nconst groqKey    = $env.GROQ_API_KEY;\n\nlet response = prev.response || 'Puedo ayudarle con informacion sobre cursos, horarios y examenes. ¿Podria reformular su consulta?';\n\ntry {\n  const embedResp = await helpers.httpRequest({\n    method: 'POST',\n    url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${geminiKey}`,\n    headers: { 'Content-Type': 'application/json' },\n    body: { model: 'models/gemini-embedding-001', outputDimensionality: 768, content: { parts: [{ text: prev.message }] } },\n    json: true,\n  });\n  const embedding = embedResp.embedding.values;\n\n  const matches = await helpers.httpRequest({\n    method: 'POST',\n    url: `${supabaseUrl}/rest/v1/rpc/match_documents`,\n    headers: {\n      apikey: supabaseKey,\n      Authorization: `Bearer ${supabaseKey}`,\n      'Content-Type': 'application/json',\n    },\n    body: { query_embedding: embedding, match_count: 4 },\n    json: true,\n  });\n\n  const context = (matches || []).map(m => `- ${m.content}`).join('\\n');\n\n  if (context) {\n    const groqResp = await helpers.httpRequest({\n      method: 'POST',\n      url: 'https://api.groq.com/openai/v1/chat/completions',\n      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },\n      body: {\n        model: 'openai/gpt-oss-120b',\n        messages: [\n          { role: 'system', content: `Sos Ianna, asistente del Instituto AMICANA. Responde SOLO con la informacion del contexto de abajo, en espanol formal (trato de usted), 1 a 3 oraciones. Si el contexto no alcanza para responder, indica que consulten en secretaria.\\n\\nContexto:\\n${context}` },\n          { role: 'user', content: prev.message },\n        ],\n        temperature: 0.2,\n        max_tokens: 300,\n      },\n      json: true,\n    });\n    response = groqResp.choices?.[0]?.message?.content || response;\n  }\n} catch (e) {\n  // El retrieval es best-effort: si falla se conserva el fallback del router,\n  // pero el motivo queda expuesto en _rag_error para poder diagnosticarlo.\n  ragError = e.message;\n}\n\nreturn [{ json: { ...prev, response, ...(ragError ? { _rag_error: ragError } : {}) } }];"
       }
     }
   ],
@@ -724,7 +738,7 @@
         ],
         [
           {
-            "node": "Fuera Scope — Format Response",
+            "node": "RAG — Generate Answer",
             "type": "main",
             "index": 0
           }
@@ -887,6 +901,17 @@
         [
           {
             "node": "Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG — Generate Answer": {
+      "main": [
+        [
+          {
+            "node": "Fuera Scope — Format Response",
             "type": "main",
             "index": 0
           }

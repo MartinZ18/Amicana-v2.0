@@ -222,6 +222,32 @@ def info_cursos(user: dict = Depends(get_chatbot_or_current_user)):
     return ok(data={"cursos": cursos})
 
 
+@router.get("/avisos")
+def avisos_activos(user: dict = Depends(get_chatbot_or_current_user), limite: int = 20):
+    """Avisos institucionales activos, para que el RAG los indexe."""
+    _solo_chatbot(user)
+    if limite < 1 or limite > 100:
+        limite = 20
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT id, titulo, contenido, importante, fecha_publicacion "
+            "FROM avisos WHERE activo=1 "
+            "ORDER BY fecha_publicacion DESC LIMIT %s",
+            (limite,),
+        )
+        avisos = cursor.fetchall()
+    finally:
+        conn.close()
+
+    for a in avisos:
+        a["fecha_publicacion"] = str(a["fecha_publicacion"])
+
+    return ok(data={"avisos": avisos})
+
+
 @router.get("/welcome")
 def welcome():
     """Mensaje de bienvenida configurable (público, sin auth)."""
