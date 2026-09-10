@@ -1,11 +1,11 @@
-﻿# AMICANA 2.0 — Sistema de Gestión
+# AMICANA 2.0 — Sistema de Gestión
 
 <p align="center">
-  <a href="https://amicana-v20-production.up.railway.app/app/index.html">
-    <img src="https://img.shields.io/badge/Live%20Demo-Online-brightgreen?style=for-the-badge&logo=railway&logoColor=white" />
+  <a href="https://martinz18.github.io">
+    <img src="https://img.shields.io/badge/Sobre%20el%20proyecto-martinz18.github.io-1B4DFF?style=for-the-badge" />
   </a>
-  <a href="https://amicana-v20-production.up.railway.app/docs">
-    <img src="https://img.shields.io/badge/API%20Docs-Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black" />
+  <a href="https://github.com/MartinZ18/rag-en-produccion">
+    <img src="https://img.shields.io/badge/C%C3%B3mo%20funciona%20el%20RAG-Documentado-0B7285?style=for-the-badge" />
   </a>
 </p>
 
@@ -26,20 +26,24 @@ Sistema integral de administración académica para el Instituto Cultural Argent
 
 ---
 
-## Demo / Despliegue
+## Estado del despliegue
 
-🔗 **App:** https://amicana-v20-production.up.railway.app/app/index.html
-🔗 **API docs (Swagger):** https://amicana-v20-production.up.railway.app/docs
+El despliegue de demostración en Railway está dado de baja. Para verlo funcionando,
+seguí la [instalación desde cero](#instalación-desde-cero): levanta la app completa
+en local con Docker o con el entorno virtual de Python.
 
-| Email | Password | Rol |
-|-------|----------|-----|
-| `admin@amicana.com` | `admin1234` | admin |
+Una vez corriendo, la documentación interactiva de la API queda en
+`http://localhost:8000/docs`, y las credenciales iniciales se generan a partir de
+las variables de entorno — ver [Login inicial](#login-inicial).
+
+Una descripción del sistema y de la arquitectura del asistente con RAG está en
+[martinz18.github.io](https://martinz18.github.io).
 
 ---
 
 ## Índice
 
-- [Demo / Despliegue](#demo--despliegue)
+- [Estado del despliegue](#estado-del-despliegue)
 - [Requisitos](#requisitos)
 - [Instalación desde cero](#instalación-desde-cero)
 - [Orden de arranque diario](#orden-de-arranque-diario)
