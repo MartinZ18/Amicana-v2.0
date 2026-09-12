@@ -4,7 +4,7 @@
   <a href="https://martinz18.github.io">
     <img src="https://img.shields.io/badge/Sobre%20el%20proyecto-martinz18.github.io-1B4DFF?style=for-the-badge" />
   </a>
-  <a href="https://github.com/MartinZ18/rag-en-produccion">
+  <a href="https://github.com/MartinZ18/rag-explicado">
     <img src="https://img.shields.io/badge/C%C3%B3mo%20funciona%20el%20RAG-Documentado-0B7285?style=for-the-badge" />
   </a>
 </p>
