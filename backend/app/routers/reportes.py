@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 
 from ..database import get_connection
 from ..dependencies import require_rol
+from ..services.cuotas_service import marcar_cuotas_vencidas
 from ..utils.responses import error, ok
 
 router = APIRouter(tags=["reportes"])
@@ -23,9 +24,7 @@ def resumen(user: dict = Depends(require_rol(*_STAFF))):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("UPDATE cuotas SET estado='vencida' "
-                       "WHERE estado='pendiente' AND fecha_vencimiento < CURDATE()")
-        conn.commit()
+        marcar_cuotas_vencidas(conn, cursor)
 
         cursor.execute("SELECT COUNT(*) AS total FROM usuarios WHERE rol='alumno'")
         total_alumnos = cursor.fetchone()["total"]
@@ -99,9 +98,7 @@ def deudores(
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("UPDATE cuotas SET estado='vencida' "
-                       "WHERE estado='pendiente' AND fecha_vencimiento < CURDATE()")
-        conn.commit()
+        marcar_cuotas_vencidas(conn, cursor)
 
         sql = (
             "SELECT u.id, u.nombre, u.apellido, u.email, u.dni, "
@@ -143,9 +140,7 @@ def cuotas_vencidas(user: dict = Depends(require_rol(*_STAFF))):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("UPDATE cuotas SET estado='vencida' "
-                       "WHERE estado='pendiente' AND fecha_vencimiento < CURDATE()")
-        conn.commit()
+        marcar_cuotas_vencidas(conn, cursor)
 
         cursor.execute(
             "SELECT cu.id, cu.concepto, cu.monto, cu.fecha_vencimiento, "

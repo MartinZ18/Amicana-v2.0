@@ -24,6 +24,7 @@ Aplicarlas en orden numérico. Las migraciones son idempotentes (`CREATE TABLE I
 | 010 | `010_eventos_institucionales.sql` | Crea tabla `eventos_institucionales`. |
 | 011 | `011_preferencias_sistema.sql` | Crea `preferencias_sistema` + 8 seeds (datos del instituto, cuotas, flags). |
 | 012 | `012_notas_unidades.sql` | Crea `unidades` y `notas_alumno` (notas por sección con pain points). |
+| 013 | `013_indices_cuotas.sql` | Índices `cuotas(estado, fecha_vencimiento)` y `cuotas(preference_id)`. Idempotente (chequea `information_schema`). |
 
 ## Notas sobre numeración duplicada
 

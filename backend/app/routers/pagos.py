@@ -207,12 +207,12 @@ def asignar_cuotas(data: CuotasBulkRequest,
     conn = get_connection()
     cursor = conn.cursor()
     try:
-        for cuota in data.cuotas:
-            cursor.execute(
-                "INSERT INTO cuotas (alumno_id, concepto, monto, fecha_vencimiento) "
-                "VALUES (%s, %s, %s, %s)",
-                (data.alumno_id, cuota.concepto, cuota.monto, cuota.fecha_vencimiento),
-            )
+        cursor.executemany(
+            "INSERT INTO cuotas (alumno_id, concepto, monto, fecha_vencimiento) "
+            "VALUES (%s, %s, %s, %s)",
+            [(data.alumno_id, c.concepto, c.monto, c.fecha_vencimiento)
+             for c in data.cuotas],
+        )
         conn.commit()
     except Exception as e:
         raise error(f"Error asignando cuotas: {e}", 500)

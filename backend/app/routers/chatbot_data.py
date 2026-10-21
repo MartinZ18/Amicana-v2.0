@@ -14,6 +14,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from ..auth import get_chatbot_or_current_user, is_chatbot
 from ..database import get_connection
+from ..services.cuotas_service import marcar_cuotas_vencidas
 from ..utils.responses import error, ok
 
 router = APIRouter(prefix="/chatbot", tags=["chatbot-data"])
@@ -68,9 +69,7 @@ def estado_cuotas_alumno(alumno_id: int,
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("UPDATE cuotas SET estado='vencida' "
-                       "WHERE estado='pendiente' AND fecha_vencimiento < CURDATE()")
-        conn.commit()
+        marcar_cuotas_vencidas(conn, cursor)
 
         cursor.execute(
             "SELECT estado, COUNT(*) AS n, COALESCE(SUM(monto), 0) AS total "
