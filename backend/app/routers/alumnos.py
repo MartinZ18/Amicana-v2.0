@@ -10,6 +10,7 @@ from ..database import get_connection
 from ..dependencies import (get_chatbot_or_current_user, get_current_user,
                             is_chatbot, require_rol, require_role)
 from ..schemas.alumnos import AlumnoCreate, AlumnoUpdate
+from ..services.cuotas_service import marcar_cuotas_vencidas
 from ..utils import serialize_row
 from ..utils.responses import error
 
@@ -61,9 +62,7 @@ def ficha_alumno(q: str, user: dict = Depends(require_rol(*_STAFF))):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("UPDATE cuotas SET estado='vencida' "
-                       "WHERE estado='pendiente' AND fecha_vencimiento < CURDATE()")
-        conn.commit()
+        marcar_cuotas_vencidas(conn, cursor)
 
         like = f"%{q}%"
         cursor.execute(

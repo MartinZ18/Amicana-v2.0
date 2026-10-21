@@ -114,7 +114,9 @@ CREATE TABLE IF NOT EXISTS cuotas (
     confirmado_por_alumno BOOLEAN NOT NULL DEFAULT FALSE,
     pdf_url               VARCHAR(255) NULL,
     fecha_creacion        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_cuotas_alumno FOREIGN KEY (alumno_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    CONSTRAINT fk_cuotas_alumno FOREIGN KEY (alumno_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    INDEX idx_cuotas_estado_venc (estado, fecha_vencimiento),
+    INDEX idx_cuotas_preference (preference_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
