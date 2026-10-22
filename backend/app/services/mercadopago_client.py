@@ -10,10 +10,28 @@ import hashlib
 import hmac
 import os
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 
 MP_API_BASE = "https://api.mercadopago.com"
+
+# Moneda con la que se crean las preferences; el webhook exige la misma al
+# confirmar el pago de una cuota.
+MP_MONEDA = "ARS"
+
+
+def _api_base() -> str:
+    """Base de la API de MP. `MP_API_BASE_URL` (solo tests E2E con un MP
+    falso local) la reemplaza; por defecto es la API real.
+
+    El override solo se acepta si apunta a localhost/127.0.0.1: así nunca puede
+    mandar el access token a otro host ni hacer pasar pagos falsos en producción.
+    """
+    override = os.environ.get("MP_API_BASE_URL", "").rstrip("/")
+    if override and urlparse(override).hostname in ("127.0.0.1", "localhost"):
+        return override
+    return MP_API_BASE
 
 
 def verificar_firma_webhook(
@@ -87,7 +105,7 @@ def crear_preference(titulo: str, monto: float, cantidad: int = 1,
             "title": titulo,
             "quantity": cantidad,
             "unit_price": float(monto),
-            "currency_id": "ARS",
+            "currency_id": MP_MONEDA,
         }],
         "back_urls": {
             "success": f"{ngrok_url}/app/alumno.html?pago=exito",
@@ -106,7 +124,7 @@ def crear_preference(titulo: str, monto: float, cantidad: int = 1,
 
     try:
         response = requests.post(
-            f"{MP_API_BASE}/checkout/preferences",
+            f"{_api_base()}/checkout/preferences",
             json=body,
             headers=_headers(),
             timeout=timeout,
@@ -149,7 +167,7 @@ def buscar_pago_por_preference(preference_id: str, timeout: int = 15) -> dict:
     """
     try:
         response = requests.get(
-            f"{MP_API_BASE}/v1/payments/search",
+            f"{_api_base()}/v1/payments/search",
             params={"preference_id": preference_id},
             headers=_headers(),
             timeout=timeout,
@@ -176,7 +194,7 @@ def buscar_pago_por_id(payment_id: str, timeout: int = 15) -> dict:
     """
     try:
         response = requests.get(
-            f"{MP_API_BASE}/v1/payments/{payment_id}",
+            f"{_api_base()}/v1/payments/{payment_id}",
             headers=_headers(),
             timeout=timeout,
         )

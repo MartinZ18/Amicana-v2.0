@@ -33,6 +33,7 @@ def crear_pago(titulo: str, monto: float, cantidad: int = 1,
         return resultado
 
     preference_id = resultado.get("preference_id")
+    conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -43,10 +44,12 @@ def crear_pago(titulo: str, monto: float, cantidad: int = 1,
             (preference_id, titulo, monto, cantidad, "pendiente", creado_por, external_reference),
         )
         conn.commit()
-        conn.close()
     except Exception as e:
         # No revertimos la preference creada en MP; solo logueamos.
         print(f"Error guardando en BD: {e}")
+    finally:
+        if conn:
+            conn.close()
 
     return resultado
 
@@ -76,7 +79,8 @@ def verificar_pago(preference_id: str) -> dict:
             "preference_id": preference_id,
         }
 
-    pago = results[0]
+    # Si hay varios intentos (p. ej. uno rechazado y otro aprobado), vale el aprobado.
+    pago = next((r for r in results if r.get("status") == "approved"), results[0])
     estado_mp = pago.get("status", "unknown")
     estado_es = _ESTADOS_MP.get(estado_mp, estado_mp)
     payment_id = str(pago.get("id", ""))
@@ -84,6 +88,7 @@ def verificar_pago(preference_id: str) -> dict:
     metodo = pago.get("payment_method_id", "")
     monto = pago.get("transaction_amount", 0)
 
+    conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -95,15 +100,18 @@ def verificar_pago(preference_id: str) -> dict:
             (estado_es, payment_id, email, metodo, datetime.now(), preference_id),
         )
         conn.commit()
-        conn.close()
     except Exception as e:
         print(f"Error actualizando BD: {e}")
+    finally:
+        if conn:
+            conn.close()
 
     return {
         "ok": True,
         "estado": estado_es,
         "payment_id": payment_id,
         "monto": monto,
+        "moneda": pago.get("currency_id"),
         "email_pagador": email,
         "metodo_pago": metodo,
         "preference_id": preference_id,
@@ -112,12 +120,12 @@ def verificar_pago(preference_id: str) -> dict:
 
 def listar_pagos() -> dict:
     """Lista los pagos guardados en BD."""
+    conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM pagos_mp ORDER BY fecha_creacion DESC")
         pagos = cursor.fetchall()
-        conn.close()
 
         for p in pagos:
             for key in p:
@@ -129,3 +137,6 @@ def listar_pagos() -> dict:
         return {"ok": True, "pagos": pagos, "total": len(pagos)}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+    finally:
+        if conn:
+            conn.close()
