@@ -22,10 +22,17 @@ DROP TABLE IF EXISTS niveles;
 
 
 -- ── usuarios: separar apellido ──────────────────────────────────────────────
--- Por compatibilidad, si la columna ya existe (re-ejecución), no la duplica.
+-- Si la columna ya existe (re-ejecución), no la duplica.
 
-ALTER TABLE usuarios
-    ADD COLUMN IF NOT EXISTS apellido VARCHAR(100) NULL AFTER nombre;
+SET @sql := IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = 'usuarios'
+        AND column_name = 'apellido') = 0,
+    'ALTER TABLE usuarios ADD COLUMN apellido VARCHAR(100) NULL AFTER nombre',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 
 -- ── calendario_clases: clases programadas por curso ─────────────────────────

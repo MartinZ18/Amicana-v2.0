@@ -6,7 +6,9 @@
 
 ## Orden de aplicación
 
-Aplicarlas en orden numérico. Las migraciones son idempotentes (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `INSERT IGNORE`).
+Aplicarlas en orden numérico. Las migraciones son idempotentes y corren en MySQL 8 y MariaDB: `CREATE TABLE IF NOT EXISTS`, `INSERT IGNORE` y, para columnas, índices y claves foráneas, una consulta a `information_schema` antes de cada cambio.
+
+> **Ojo:** `004a` borra las tablas `niveles` y `progreso_alumno`, y `008` las vuelve a crear vacías. No vuelvas a correr la 004a sobre una base que ya tiene progreso de alumnos cargado, porque se pierde.
 
 | # | Archivo | Qué hace |
 |---|---------|----------|
