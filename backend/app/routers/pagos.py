@@ -4,10 +4,14 @@ Schemas centralizados en `app.schemas.pagos` y `app.schemas.cuotas`.
 Las shapes históricas de respuesta se mantienen para no romper el
 frontend ni el workflow de n8n.
 """
-from datetime import date
+import logging
+import os
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.concurrency import run_in_threadpool
 
 from ..services.auditoria_service import registrar as registrar_accion
 from ..database import get_connection
@@ -17,6 +21,7 @@ from ..schemas.cuotas import CuotasBulkRequest
 from ..schemas.pagos import (ConfirmarManualRequest, GenerarFacturaPdfRequest,
                              PagarCuotaRequest, PagoMPRequest)
 from ..services import mercadopago_service
+from ..services.mercadopago_client import MP_MONEDA
 from ..services.pdf_service import generar_factura_pdf
 from ..utils import serialize_row
 from ..utils.responses import error
@@ -29,6 +34,55 @@ pagos_root_router = APIRouter(tags=["pagos-root"])
 
 
 _STAFF = ("admin", "administrativo")
+
+_log = logging.getLogger("amicana")
+
+_TOLERANCIA_MONTO = Decimal("0.01")
+
+
+def _pago_cubre_cuota(monto_recibido, moneda, monto_cuota) -> bool:
+    """True si el pago de MP cubre la cuota: misma moneda y monto >= cuota (±1 centavo)."""
+    if moneda != MP_MONEDA:
+        return False
+    try:
+        recibido = Decimal(str(monto_recibido))
+        if not recibido.is_finite():
+            return False
+        return recibido >= Decimal(str(monto_cuota)) - _TOLERANCIA_MONTO
+    except Exception:
+        return False
+
+
+def _aplicar_pago_aprobado_a_cuota(cursor, cuota: dict, payment_id, monto_recibido, moneda) -> str:
+    """Aplica un pago APROBADO de MP a una cuota y devuelve su estado final.
+
+    Solo marca `pagada` si el monto y la moneda cubren la cuota; si no, la deja
+    en `pendiente_verificacion` para revisión y loguea la diferencia. Una cuota
+    ya `pagada` nunca se modifica, así los reintentos son idempotentes.
+    """
+    if cuota["estado"] == "pagada":
+        return "pagada"
+    if _pago_cubre_cuota(monto_recibido, moneda, cuota["monto"]):
+        cursor.execute("UPDATE cuotas SET estado='pagada' WHERE id=%s AND estado<>'pagada'",
+                       (cuota["id"],))
+        registrar_accion(
+            "mercadopago", "pago_mp_aplicado",
+            f"cuota_id={cuota['id']} payment_id={payment_id} monto={monto_recibido} {moneda}",
+        )
+        return "pagada"
+    _log.warning(
+        "Pago MP aprobado no cubre la cuota: payment_id=%s cuota_id=%s "
+        "esperado=%s %s recibido=%s %s",
+        payment_id, cuota["id"], cuota["monto"], MP_MONEDA, monto_recibido, moneda,
+    )
+    cursor.execute("UPDATE cuotas SET estado='pendiente_verificacion' "
+                   "WHERE id=%s AND estado<>'pagada'", (cuota["id"],))
+    registrar_accion(
+        "mercadopago", "pago_mp_no_cubre_cuota",
+        f"cuota_id={cuota['id']} payment_id={payment_id} esperado={cuota['monto']} {MP_MONEDA} "
+        f"recibido={monto_recibido} {moneda}",
+    )
+    return "pendiente_verificacion"
 
 
 @router.post("/confirmar-manual")
@@ -61,6 +115,8 @@ def confirmar_pago_manual(data: ConfirmarManualRequest,
         conn.commit()
     finally:
         conn.close()
+    registrar_accion(user.get("sub", ""), "confirmar_pago_manual",
+                     f"cuota_id={data.cuota_id} alumno_id={data.alumno_id}")
     return {
         "ok": True,
         "mensaje": "Confirmación registrada. Un administrador validará tu pago en breve.",
@@ -123,6 +179,7 @@ def generar_factura_pdf_endpoint(data: GenerarFacturaPdfRequest,
     finally:
         conn.close()
 
+    registrar_accion(user.get("sub", ""), "generar_factura_pdf", f"cuota_id={data.cuota_id}")
     return {"ok": True, "pdf_url": pdf_url, "cuota_id": data.cuota_id, "reused": False}
 
 
@@ -240,6 +297,9 @@ def mis_cuotas(user: dict = Depends(get_current_user)):
             "WHERE alumno_id=%s AND estado='pendiente' AND fecha_vencimiento < CURDATE()",
             (alumno_id,),
         )
+        if cursor.rowcount:
+            registrar_accion(email, "marcar_cuotas_vencidas",
+                             f"alumno_id={alumno_id} cuotas={cursor.rowcount}")
         conn.commit()
         cursor.execute(
             "SELECT * FROM cuotas WHERE alumno_id=%s ORDER BY fecha_vencimiento ASC",
@@ -284,11 +344,22 @@ def verificar_pago_mp(preference_id: str, user: dict = Depends(get_current_user)
     if resultado.get("estado") == "aprobado":
         try:
             conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE cuotas SET estado='pagada' WHERE preference_id=%s",
-                           (preference_id,))
-            conn.commit()
-            conn.close()
+            try:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("SELECT id, monto, estado FROM cuotas WHERE preference_id=%s",
+                               (preference_id,))
+                for cuota in cursor.fetchall():
+                    estado = _aplicar_pago_aprobado_a_cuota(
+                        cursor, cuota, resultado.get("payment_id"),
+                        resultado.get("monto"), resultado.get("moneda"))
+                    if estado != "pagada":
+                        resultado["advertencia"] = (
+                            "El monto o la moneda del pago no coincide con la cuota. "
+                            "Quedó pendiente de verificación."
+                        )
+                conn.commit()
+            finally:
+                conn.close()
         except Exception as e:
             print(f"⚠️  Error actualizando cuota tras pago aprobado ({preference_id}): {e}")
             registrar_accion(user.get("sub", ""), "error_cuota_pago",
@@ -301,8 +372,8 @@ def verificar_pago_mp(preference_id: str, user: dict = Depends(get_current_user)
 
 
 @pagos_root_router.get("/pagos")
-def ver_pagos(user: dict = Depends(get_current_user)):
-    """Lista todos los pagos de MercadoPago."""
+def ver_pagos(user: dict = Depends(require_rol(*_STAFF))):
+    """Lista todos los pagos de MercadoPago (incluye emails de pagadores: solo staff)."""
     resultado = mercadopago_service.listar_pagos()
     if not resultado["ok"]:
         raise error(resultado.get("error", "Error"), 500)
@@ -390,10 +461,11 @@ def aprobar_pago_manual(cuota_id: int, user: dict = Depends(require_rol(*_STAFF)
 
 @router.post("/webhook")
 async def webhook_mp(request: Request):
-    """Webhook IPN para MercadoPago."""
-    import logging as _log
-    from ..services.mercadopago_client import buscar_pago_por_id, verificar_firma_webhook
+    """Webhook IPN para MercadoPago.
 
+    Solo el parseo del body es async; la consulta a MP y a la BD son
+    sincrónicas y corren en el threadpool para no bloquear el event loop.
+    """
     query = request.query_params
 
     # MP envía notificaciones POST con topic/type=payment y data.id o id
@@ -414,28 +486,32 @@ async def webhook_mp(request: Request):
     if not payment_id or action not in ("payment", "payment.created", "payment.updated"):
         return {"ok": True, "mensaje": "Notificación ignorada"}
 
+    return await run_in_threadpool(
+        _procesar_webhook_mp, str(payment_id),
+        request.headers.get("x-signature", ""), request.headers.get("x-request-id", ""),
+    )
+
+
+def _procesar_webhook_mp(payment_id: str, x_sig: str, x_req: str) -> dict:
+    """Valida la firma, consulta el pago en MP y lo aplica a pagos_mp y a la cuota."""
+    from ..mercadopago_qr import _ESTADOS_MP
+    from ..services.mercadopago_client import buscar_pago_por_id, verificar_firma_webhook
+
     # Validar firma HMAC-SHA256 de MercadoPago.
     # Si MP_WEBHOOK_SECRET no está configurado, se loguea la advertencia y
     # se continúa (modo permisivo — solo pensado para desarrollo local; en
     # producción la variable es obligatoria, ver chequeo de arranque en main.py).
-    x_sig = request.headers.get("x-signature", "")
-    x_req = request.headers.get("x-request-id", "")
-    import os as _os
-    if _os.environ.get("MP_WEBHOOK_SECRET"):
-        if not verificar_firma_webhook(x_sig, x_req, str(payment_id)):
-            _log.getLogger("amicana").warning(
-                "Webhook MP rechazado: firma inválida payment_id=%s", payment_id
-            )
+    if os.environ.get("MP_WEBHOOK_SECRET"):
+        if not verificar_firma_webhook(x_sig, x_req, payment_id):
+            _log.warning("Webhook MP rechazado: firma inválida payment_id=%s", payment_id)
             return {"ok": False, "error": "Firma inválida"}
     else:
-        _log.getLogger("amicana").warning(
+        _log.warning(
             "Webhook MP aceptado SIN validar firma (MP_WEBHOOK_SECRET no configurado) "
             "payment_id=%s — modo dev únicamente, nunca debería ocurrir en producción",
             payment_id,
         )
-    from ..mercadopago_qr import _ESTADOS_MP
-    from datetime import datetime
-    
+
     resp = buscar_pago_por_id(payment_id)
     if not resp.get("ok"):
         return {"ok": False, "error": resp.get("error")}
@@ -451,8 +527,8 @@ async def webhook_mp(request: Request):
         return {"ok": True, "mensaje": "Pago sin external_reference"}
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
     try:
+        cursor = conn.cursor(dictionary=True)
         # 1. IDEMPOTENCIA: Verificar si este payment_id ya se procesó
         cursor.execute("SELECT estado FROM pagos_mp WHERE payment_id = %s", (payment_id,))
         pago_existente = cursor.fetchone()
@@ -468,17 +544,27 @@ async def webhook_mp(request: Request):
                WHERE external_reference = %s""",
             (estado_es, payment_id, email, metodo, datetime.now(), external_reference),
         )
+        registrar_accion("mercadopago", "webhook_pago_mp",
+                         f"payment_id={payment_id} estado={estado_es} ref={external_reference}")
 
         # 3. Actualizar cuota
         if external_reference.startswith("CUOTA_"):
             cuota_id_str = external_reference.replace("CUOTA_", "")
             if cuota_id_str.isdigit():
                 if estado_es == "aprobado":
-                    cursor.execute("UPDATE cuotas SET estado='pagada' WHERE id=%s", (int(cuota_id_str),))
+                    cursor.execute("SELECT id, monto, estado FROM cuotas WHERE id=%s",
+                                   (int(cuota_id_str),))
+                    cuota = cursor.fetchone()
+                    if cuota:
+                        _aplicar_pago_aprobado_a_cuota(
+                            cursor, cuota, payment_id,
+                            pago.get("transaction_amount"), pago.get("currency_id"))
         
         conn.commit()
-    except Exception as e:
-        print(f"Error procesando webhook IPN: {e}")
+    except Exception:
+        # 500 para que MercadoPago reintente la notificación.
+        _log.exception("Error procesando webhook IPN payment_id=%s", payment_id)
+        raise error("Error procesando el pago", 500)
     finally:
         conn.close()
 
