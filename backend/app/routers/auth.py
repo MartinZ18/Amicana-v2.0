@@ -17,6 +17,7 @@ from jose import JWTError, jwt
 
 from ..auth import ALGORITHM, SECRET_KEY
 from ..dependencies import get_current_user
+from ..utils.rate_limit import limitar_login, limitar_registro
 from ..schemas.auth import (LoginRequest, MeResponse, TokenResponse,
                             UsuarioCreate, UsuarioCreateLegacy)
 from ..services import auth_service
@@ -45,7 +46,7 @@ def _exigir_admin_para_rol_privilegiado(rol: str, token: Optional[str]) -> None:
 
 # ── /auth/register (canónico) ──────────────────────────────────────────────
 
-@router.post("/auth/register")
+@router.post("/auth/register", dependencies=[Depends(limitar_registro)])
 def register(usuario: UsuarioCreate,
              token: Optional[str] = Depends(_optional_bearer)):
     """Registra un usuario nuevo. Por defecto rol=alumno; staff requiere JWT admin."""
@@ -62,7 +63,8 @@ def register(usuario: UsuarioCreate,
 
 # ── /auth/login (canónico, JSON) ───────────────────────────────────────────
 
-@router.post("/auth/login", response_model=TokenResponse)
+@router.post("/auth/login", response_model=TokenResponse,
+             dependencies=[Depends(limitar_login)])
 def login_json(req: LoginRequest):
     """Login con email + password (JSON). Devuelve JWT + rol."""
     try:
@@ -97,7 +99,7 @@ def me(user: dict = Depends(get_current_user)):
 # legacy: no migrar — estos endpoints usan HTTPException plano para no romper
 # tests legacy ni el frontend actual que lee `data.detail` directamente.
 
-@router.post("/usuarios", deprecated=True)
+@router.post("/usuarios", deprecated=True, dependencies=[Depends(limitar_registro)])
 def crear_usuario_legacy(usuario: UsuarioCreateLegacy,
                          token: Optional[str] = Depends(_optional_bearer)):
     """[DEPRECATED] Alias de POST /auth/register. Usar /auth/register.
@@ -115,7 +117,7 @@ def crear_usuario_legacy(usuario: UsuarioCreateLegacy,
     return {"mensaje": "Usuario creado"}
 
 
-@router.post("/login", deprecated=True)
+@router.post("/login", deprecated=True, dependencies=[Depends(limitar_login)])
 def login_form_legacy(form_data: OAuth2PasswordRequestForm = Depends()):
     """[DEPRECATED] Alias de POST /auth/login. Usar /auth/login."""
     try:

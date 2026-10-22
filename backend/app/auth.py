@@ -47,8 +47,13 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 def is_chatbot(user: dict) -> bool:
-    """True si el user dict viene de la auth via X-Chatbot-Key."""
-    return user.get("sub") == "chatbot@amicana.com"
+    """True si el user dict viene de la auth via X-Chatbot-Key.
+
+    El sub solo no alcanza: un JWT lleva como sub el email del usuario y
+    cualquiera puede registrarse con chatbot@amicana.com. El rol "chatbot" no
+    existe en la BD, así que ningún JWT emitido por login lo puede traer.
+    """
+    return user.get("rol") == "chatbot" and user.get("sub") == "chatbot@amicana.com"
 
 
 def get_chatbot_or_current_user(

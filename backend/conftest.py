@@ -9,6 +9,10 @@ os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("SECRET_KEY", "test_secret_key_for_pytest_only")
 os.environ.setdefault("CHATBOT_INTERNAL_KEY", "amicana-internal")
 os.environ.setdefault("MP_ACCESS_TOKEN", "TEST-fake-for-tests")
+# Todos los tests en proceso comparten la IP "testclient": sin esto el rate
+# limiting de login/registro los cortaría. test_seguridad_e2e levanta su
+# propio uvicorn con el límite real.
+os.environ.setdefault("AUTH_RATE_LIMIT", "100000")
 
 # Credenciales de test — definir en .env.test (ver .env.test.example)
 os.environ.setdefault("TEST_USER_EMAIL", "test_amicana_pytest@mail.com")

@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends
 
 from ..database import get_connection
 from ..dependencies import (get_chatbot_or_current_user, get_current_user,
-                            is_chatbot, require_rol, require_role)
+                            is_chatbot, require_chatbot_or_rol, require_rol,
+                            require_role)
 from ..schemas.alumnos import AlumnoCreate, AlumnoUpdate
 from ..services.cuotas_service import marcar_cuotas_vencidas
 from ..utils import serialize_row
@@ -25,8 +26,12 @@ _CATEGORIAS = {"regular", "acelerado", "especial", "intensivo"}
 
 @router.get("/alumnos/buscar")
 def buscar_alumno(dni: str | None = None, email: str | None = None,
-                  user: dict = Depends(get_chatbot_or_current_user)):
-    """Busca un alumno por DNI o email. Usado por el chatbot."""
+                  user: dict = Depends(require_chatbot_or_rol(*_STAFF))):
+    """Busca un alumno por DNI o email. Usado por el chatbot y por el staff.
+
+    Devuelve email, DNI y teléfono: un alumno (cualquiera puede registrarse
+    como alumno) no puede usarlo para leer los datos de otro.
+    """
     if not dni and not email:
         raise error("Indicá dni o email", 400)
     conn = get_connection()
