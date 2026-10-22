@@ -1,6 +1,6 @@
 -- Migration 005: nombres de cursos en inglés
 -- Target DB : gestion_facturas_amicana
--- Run once  : mysql -u root -p gestion_facturas_amicana < database/migrations/005_curso_nombres_ingles.sql
+-- Run once  : mysql -u root -p gestion_facturas_amicana < database/migrations/005b_curso_nombres_ingles.sql
 --
 -- Renombra los cursos seedeados al inglés (es un instituto de idiomas).
 -- Solo actualiza los nombres si coinciden con los originales en español;

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Python-3.13-3776AB?style=flat&logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white" />
   <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat&logo=mysql&logoColor=white" />
   <img src="https://img.shields.io/badge/MercadoPago-009EE3?style=flat&logo=mercadopago&logoColor=white" />
@@ -22,7 +22,7 @@
 
 Sistema integral de administración académica para el Instituto Cultural Argentino Norteamericano (AMICANA). Cubre gestión de cuotas, pagos con MercadoPago, calendario académico, progreso del alumno y chatbot institucional.
 
-**Stack:** Python 3.11 · FastAPI · MySQL 8 · Vanilla JS · Playwright · n8n
+**Stack:** Python 3.13 · FastAPI · MySQL 8 · Vanilla JS · Playwright · n8n
 
 ---
 
@@ -61,7 +61,7 @@ Una descripción del sistema y de la arquitectura del asistente con RAG está en
 
 | Herramienta | Versión mínima | Descarga |
 |-------------|---------------|----------|
-| Python | 3.11+ | [python.org](https://python.org) |
+| Python | 3.13+ | [python.org](https://python.org) |
 | MySQL | 8.0+ | [MySQL Community Server](https://dev.mysql.com/downloads/mysql/) o [XAMPP](https://apachefriends.org) |
 | Node.js | 18+ | [nodejs.org](https://nodejs.org) |
 | ngrok | cualquiera | [ngrok.com/download](https://ngrok.com/download) |

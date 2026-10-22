@@ -83,7 +83,7 @@ workflow de **n8n** que implementa el chatbot.
 
 | Capa | Tecnología | Notas |
 |------|-----------|-------|
-| Lenguaje backend | Python 3.11 | |
+| Lenguaje backend | Python 3.13 | |
 | Framework API | FastAPI 0.135 + Uvicorn | Documentación interactiva en `/docs` (Swagger) |
 | Validación de datos | Pydantic 2.x | Modelos en `backend/app/schemas/` |
 | Base de datos | MySQL 8 (`gestion_facturas_amicana`) | Driver `mysql-connector-python` |
@@ -125,7 +125,7 @@ backend/
   .env.example         Plantilla de variables de entorno
 database/
   BD_Amicana.sql       Schema canónico consolidado (15 tablas, idempotente)
-  migrations/          Migraciones incrementales 001 → 012 (solo para upgrades)
+  migrations/          Migraciones incrementales 001 → 013 (solo para upgrades)
 frontend/
   index.html           Login / registro / Google OAuth
   admin.html           Panel administrativo (6 módulos)

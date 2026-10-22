@@ -1,6 +1,6 @@
 -- Migration 004: rediseño del panel administrativo
 -- Target DB : gestion_facturas_amicana
--- Run once  : mysql -u root -p gestion_facturas_amicana < database/migrations/004_admin_overhaul.sql
+-- Run once  : mysql -u root -p gestion_facturas_amicana < database/migrations/004a_admin_overhaul.sql
 --
 -- Cambios:
 --   - DROP de módulos eliminados (facturas IA, auditoría, análisis CUIT, progreso académico, niveles).
