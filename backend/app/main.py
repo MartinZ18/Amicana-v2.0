@@ -1,4 +1,3 @@
-import collections
 import logging
 import os
 import threading
@@ -17,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .auth import hash_password
 from .database import get_connection
+from .utils.rate_limit import SlidingWindowLimiter, client_ip
 from .utils.responses import error
 
 logger = logging.getLogger("amicana")
@@ -155,21 +155,13 @@ def root():
     return {"mensaje": "AMICANA 2.0 funcionando 🔥"}
 
 
-_RATE_LIMIT  = int(os.environ.get("CHATBOT_RATE_LIMIT", "30"))  # mensajes por ventana
-_RATE_WINDOW = 3600  # segundos (1 hora)
-_rate_buckets: dict = collections.defaultdict(list)  # session_id → [timestamps]
-
-
-def _check_rate_limit(session_id: str) -> bool:
-    """True si la sesión excedió el límite. Limpia entradas viejas."""
-    now = time.monotonic()
-    cutoff = now - _RATE_WINDOW
-    bucket = _rate_buckets[session_id]
-    _rate_buckets[session_id] = [t for t in bucket if t > cutoff]
-    if len(_rate_buckets[session_id]) >= _RATE_LIMIT:
-        return True
-    _rate_buckets[session_id].append(now)
-    return False
+# Cada mensaje dispara llamadas al LLM vía n8n. El límite va por IP y no por
+# session_id: el session_id lo inventa el cliente, así que con cambiarlo en
+# cada mensaje se esquivaba el límite.
+_chatbot_limiter = SlidingWindowLimiter(
+    int(os.environ.get("CHATBOT_RATE_LIMIT", "30")),  # mensajes por ventana
+    3600,  # segundos (1 hora)
+)
 
 
 def _normalize_chatbot_response(data) -> dict:
@@ -214,11 +206,12 @@ async def chatbot_proxy(request: Request):
 
     session_id = (body or {}).get("session_id", "<sin-session>")
 
-    if _check_rate_limit(session_id):
-        logger.warning("[chatbot proxy] rate limit excedido session=%s", session_id)
+    if _chatbot_limiter.hit(client_ip(request)):
+        logger.warning("[chatbot proxy] rate limit excedido ip=%s session=%s",
+                       client_ip(request), session_id)
         from fastapi.responses import JSONResponse as _JSONResponse
         return _JSONResponse(status_code=429, content={
-            "text": "Demasiados mensajes, esperá un minuto.",
+            "text": "Demasiados mensajes. Probá de nuevo más tarde.",
             "qr_url": None, "pdf_url": None,
         })
 

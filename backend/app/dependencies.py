@@ -11,6 +11,8 @@ Uso típico:
     def f(user: dict = Depends(require_rol("admin"))):
         ...
 """
+from fastapi import Depends
+
 from .auth import (  # noqa: F401  (reexport)
     get_current_user,
     get_chatbot_or_current_user,
@@ -19,6 +21,7 @@ from .auth import (  # noqa: F401  (reexport)
     require_role,
     require_any_role,
 )
+from .utils.responses import error
 
 
 def require_rol(*roles: str):
@@ -29,3 +32,12 @@ def require_rol(*roles: str):
     por compatibilidad con el código existente.
     """
     return require_any_role(*roles)
+
+
+def require_chatbot_or_rol(*roles: str):
+    """Factory de dependencia: deja pasar al chatbot (X-Chatbot-Key) o a los roles indicados."""
+    def checker(user: dict = Depends(get_chatbot_or_current_user)):
+        if not is_chatbot(user) and user.get("rol") not in roles:
+            raise error("Sin permisos", 403)
+        return user
+    return checker

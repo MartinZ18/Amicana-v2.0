@@ -1,15 +1,4 @@
 # =========================
-# CLAUDE / METODOLOGIA (no subir)
-# =========================
-.claude/
-CLAUDE.md
-CLAUDE_*.md
-SPRINT_*.md
-GUIA_INSTALACION.txt
-docs/specs/
-*.pdf
-
-# =========================
 # PYTHON
 # =========================
 __pycache__/
@@ -68,6 +57,7 @@ coverage/
 # =========================
 # ARCHIVOS GENERADOS
 # =========================
+*.pdf
 static/facturas/*.pdf
 static/*.pdf
 backend/static/facturas/*.pdf
@@ -97,3 +87,6 @@ Thumbs.db
 # =========================
 .env.docker
 docker-compose.override.yml
+
+# Added by ggshield
+.cache_ggshield
