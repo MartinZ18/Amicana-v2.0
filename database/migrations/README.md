@@ -8,14 +8,14 @@
 
 Aplicarlas en orden numérico. Las migraciones son idempotentes y corren en MySQL 8 y MariaDB: `CREATE TABLE IF NOT EXISTS`, `INSERT IGNORE` y, para columnas, índices y claves foráneas, una consulta a `information_schema` antes de cada cambio.
 
-> **Ojo:** `004a` borra las tablas `niveles` y `progreso_alumno`, y `008` las vuelve a crear vacías. No vuelvas a correr la 004a sobre una base que ya tiene progreso de alumnos cargado, porque se pierde.
+`004a` borra `niveles` y `progreso_alumno` solo si están en el formato anterior (sin `codigo`/`orden` o sin `modulos_completados`/`fecha_proximo_examen`), y `008` las crea en el formato actual. Si ya tienen el formato actual se conservan con sus datos, así que volver a correr todas las migraciones no borra el progreso de los alumnos.
 
 | # | Archivo | Qué hace |
 |---|---------|----------|
 | 001 | `001_chatbot.sql` | Crea `chat_sessions`, columnas `comprobante_manual`/`confirmado_por_alumno` en `pagos`. |
 | 002 | `002_cursos_y_alumno_datos.sql` | Crea `cursos`. Agrega `dni`/`telefono`/`curso_id` a `usuarios`. |
 | 003 | `003_cuotas_estado_verificacion.sql` | Agrega `pendiente_verificacion` al ENUM `cuotas.estado`. |
-| 004a | `004a_admin_overhaul.sql` | Drop de módulos legacy (`auditoria`, `facturas`, `analisis`). Crea `calendario_clases`, `comunicados`. Agrega `apellido` a `usuarios`. |
+| 004a | `004a_admin_overhaul.sql` | Drop de módulos legacy (`auditoria`, `facturas`, `analisis`) y de `niveles`/`progreso_alumno` en formato anterior. Crea `calendario_clases`, `comunicados`. Agrega `apellido` a `usuarios`. |
 | 004b | `004b_chat_session_history.sql` | Agrega columna `history JSON` a `chat_sessions`. |
 | 005a | `005a_cuota_pdf_url.sql` | Agrega `pdf_url` a `cuotas`. |
 | 005b | `005b_curso_nombres_ingles.sql` | Renombra cursos del seed inicial al inglés. |

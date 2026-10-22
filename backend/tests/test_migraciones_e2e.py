@@ -8,9 +8,11 @@ root), MIG_DB_PASSWORD.
     MIG_DB_PORT=3327 MIG_DB_DISPOSABLE=1 MIG_DB_PASSWORD=... python -m pytest tests/test_migraciones_e2e.py -v
 
 Escenario: una instalación vieja (schema canónico sin las columnas que agregan
-las migraciones, con datos cargados) se actualiza aplicando todas las
-migraciones en orden, tal como están en disco. Después se aplican otra vez:
-deben ser idempotentes, dejar el mismo schema y no tocar los datos existentes.
+las migraciones, `niveles` y `progreso_alumno` en un formato anterior, con datos
+cargados) se actualiza aplicando todas las migraciones en orden, tal como están
+en disco. Las tablas en formato anterior se reemplazan por las actuales. Después
+se carga progreso de un alumno y se aplican otra vez: deben ser idempotentes,
+dejar el mismo schema y no tocar los datos existentes, progreso incluido.
 """
 import os
 import secrets
@@ -166,6 +168,17 @@ def _instalacion_vieja(conn):
     )
     alumno_id = cur.lastrowid
     cur.execute("ALTER TABLE usuarios MODIFY COLUMN password VARCHAR(255) NOT NULL")
+    # Formato anterior de niveles/progreso (sin codigo/orden ni modulos_completados).
+    cur.execute("DROP TABLE progreso_alumno")
+    cur.execute("DROP TABLE niveles")
+    cur.execute("CREATE TABLE niveles (id INT AUTO_INCREMENT PRIMARY KEY, nombre VARCHAR(50) NOT NULL)")
+    cur.execute("""CREATE TABLE progreso_alumno (
+        id INT AUTO_INCREMENT PRIMARY KEY, alumno_id INT NOT NULL, nivel_id INT NULL,
+        FOREIGN KEY (alumno_id) REFERENCES usuarios(id),
+        FOREIGN KEY (nivel_id) REFERENCES niveles(id))""")
+    cur.execute("INSERT INTO niveles (nombre) VALUES ('Inicial')")
+    cur.execute("INSERT INTO progreso_alumno (alumno_id, nivel_id) VALUES (%s, %s)",
+                (alumno_id, cur.lastrowid))
     cur.close()
     return alumno_id, email
 
@@ -208,9 +221,30 @@ def test_upgrade_de_instalacion_vieja_es_completo_e_idempotente():
                AND index_name = 'idx_cursos_categoria_modalidad' ORDER BY seq_in_index""", (DB_NAME,))
         assert indice == [("categoria",), ("modalidad",)], f"idx_cursos_categoria_modalidad: {indice}"
 
+        assert {"codigo", "orden"} <= set(_columnas(conn, "niveles")), "niveles quedó en formato anterior"
+        assert {"modulos_completados", "fecha_proximo_examen"} <= set(_columnas(conn, "progreso_alumno")), \
+            "progreso_alumno quedó en formato anterior"
+        niveles = _query(conn, f"SELECT codigo FROM {DB_NAME}.niveles ORDER BY orden")
+        assert niveles == [("A1",), ("A2",), ("B1",), ("B2",), ("C1",), ("C2",)], f"niveles: {niveles}"
+
+        cur = conn.cursor()
+        cur.execute(f"""INSERT INTO {DB_NAME}.progreso_alumno (alumno_id, nivel_id, modulos_completados)
+                        SELECT %s, id, 3 FROM {DB_NAME}.niveles WHERE codigo = 'B1'""", (alumno_id,))
+        cur.close()
+        progreso_antes = _query(conn, f"""
+            SELECT p.alumno_id, n.codigo, p.modulos_completados
+              FROM {DB_NAME}.progreso_alumno p JOIN {DB_NAME}.niveles n ON n.id = p.nivel_id""")
+        assert progreso_antes == [(alumno_id, "B1", 3)]
+
         for path in _migrations():
             _run_file(conn, path)
         assert _schema_snapshot(conn) == primera, "la segunda pasada cambió el schema"
+
+        progreso_despues = _query(conn, f"""
+            SELECT p.alumno_id, n.codigo, p.modulos_completados
+              FROM {DB_NAME}.progreso_alumno p JOIN {DB_NAME}.niveles n ON n.id = p.nivel_id""")
+        assert progreso_despues == progreso_antes, "la segunda pasada borró el progreso de los alumnos"
+        assert _query(conn, f"SELECT COUNT(*) FROM {DB_NAME}.niveles")[0][0] == 6
 
         usuario_despues = _query(
             conn, f"SELECT id, nombre, email, password, rol FROM {DB_NAME}.usuarios WHERE id = %s",
