@@ -16,7 +16,8 @@ from fastapi.concurrency import run_in_threadpool
 from ..services.auditoria_service import registrar as registrar_accion
 from ..database import get_connection
 from ..dependencies import (get_chatbot_or_current_user, get_current_user,
-                            is_chatbot, require_rol)
+                            is_chatbot, puede_pagar_cuota, puede_verificar_pago,
+                            require_rol)
 from ..schemas.cuotas import CuotasBulkRequest
 from ..schemas.pagos import (ConfirmarManualRequest, GenerarFacturaPdfRequest,
                              PagarCuotaRequest, PagoMPRequest)
@@ -336,7 +337,7 @@ def crear_pago_mp(pago: PagoMPRequest, user: dict = Depends(get_current_user)):
 
 
 @pagos_root_router.get("/verificar-pago/{preference_id}")
-def verificar_pago_mp(preference_id: str, user: dict = Depends(get_current_user)):
+def verificar_pago_mp(preference_id: str, user: dict = Depends(puede_verificar_pago)):
     """Verifica el estado de un pago en MercadoPago."""
     resultado = mercadopago_service.verificar_pago(preference_id, user.get("sub"))
     if not resultado["ok"]:
@@ -383,7 +384,7 @@ def ver_pagos(user: dict = Depends(require_rol(*_STAFF))):
 @pagos_root_router.post("/pagar-cuota/{cuota_id}")
 def pagar_cuota(cuota_id: int,
                 data: Optional[PagarCuotaRequest] = None,
-                user: dict = Depends(get_chatbot_or_current_user)):
+                user: dict = Depends(puede_pagar_cuota)):
     """Genera link de pago MP para una cuota específica."""
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -408,8 +409,7 @@ def pagar_cuota(cuota_id: int,
             raise error("alumno_id requerido para llamadas del chatbot", 403)
         if data.alumno_id != cuota["alumno_id"]:
             raise error("alumno_id no coincide con el dueño de la cuota", 403)
-        if user.get("chatbot_alumno_id") is not None and \
-           user.get("chatbot_alumno_id") != cuota["alumno_id"]:
+        if user.get("chatbot_alumno_id") != cuota["alumno_id"]:
             raise error("alumno_id no coincide con la sesión autenticada", 403)
         email_pagador = cuota["alumno_email"]
         creado_por = "chatbot@amicana.com"
