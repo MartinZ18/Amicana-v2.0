@@ -13,10 +13,11 @@ No expone HTTP — los routers se encargan de redirigir.
 import os
 import secrets
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from fastapi import HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from ..auth import create_access_token
 from ..database import get_connection
@@ -28,6 +29,19 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 SCOPES = "openid email profile"
+
+
+def _api_url(ruta: str, real: str) -> str:
+    """URL de Google. `GOOGLE_API_BASE_URL` (solo tests E2E con un Google falso local) reemplaza
+    token y userinfo por `<base>/token` y `<base>/userinfo`.
+
+    El override solo se acepta si apunta a localhost/127.0.0.1: nunca puede mandar el
+    client_secret ni el code a otro host.
+    """
+    override = os.environ.get("GOOGLE_API_BASE_URL", "").rstrip("/")
+    if override and urlparse(override).hostname in ("127.0.0.1", "localhost"):
+        return f"{override}/{ruta}"
+    return real
 
 
 def _client_id() -> str:
@@ -58,7 +72,7 @@ def _redirect_uri() -> str:
 
 
 def post_login_redirect() -> str:
-    """A dónde mandamos al usuario tras el callback exitoso (con ?token=)."""
+    """A dónde mandamos al usuario tras el callback exitoso (la sesión va en cookies)."""
     return os.environ.get(
         "GOOGLE_POST_LOGIN_REDIRECT",
         "http://localhost:8000/app/index.html",
@@ -93,7 +107,7 @@ async def exchange_code_for_token(code: str) -> dict:
     }
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(GOOGLE_TOKEN_URL, data=payload)
+            r = await client.post(_api_url("token", GOOGLE_TOKEN_URL), data=payload)
     except httpx.TimeoutException:
         auditoria_service.registrar(None, "error_api_externa", "Timeout en Google token")
         raise HTTPException(
@@ -129,7 +143,7 @@ async def get_userinfo(access_token: str) -> dict:
     headers = {"Authorization": f"Bearer {access_token}"}
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(GOOGLE_USERINFO_URL, headers=headers)
+            r = await client.get(_api_url("userinfo", GOOGLE_USERINFO_URL), headers=headers)
     except httpx.TimeoutException:
         auditoria_service.registrar(None, "error_api_externa", "Timeout en Google userinfo")
         raise HTTPException(
@@ -242,7 +256,8 @@ async def handle_callback(code: str, expected_state: Optional[str],
         )
     token_data = await exchange_code_for_token(code)
     userinfo = await get_userinfo(token_data["access_token"])
-    user = get_or_create_user(userinfo)
+    # mysql-connector es síncrono: fuera del event loop.
+    user = await run_in_threadpool(get_or_create_user, userinfo)
     jwt_token = emitir_token(user)
     auditoria_service.registrar(user["email"], "google_login_exitoso",
                                 f"rol={user['rol']}")

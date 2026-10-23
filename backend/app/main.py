@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .auth import hash_password
 from .database import get_connection
+from .utils import sesion
 from .utils.rate_limit import SlidingWindowLimiter, client_ip
 from .utils.responses import error
 
@@ -91,21 +92,39 @@ app = FastAPI(title="AMICANA 2.0", lifespan=lifespan)
 # CORS: lista de orígenes permitidos, configurable vía env CORS_ORIGINS
 # (CSV: "http://localhost:5173,https://app.amicana.com"). En desarrollo
 # default permisivo de localhost; en producción definir explícitamente.
-_cors_env = os.environ.get("CORS_ORIGINS", "")
-if _cors_env.strip() == "*":
-    cors_origins = ["*"]
-elif _cors_env.strip():
-    cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
-else:
-    cors_origins = [
-        "http://localhost",
-        "http://localhost:8000",
-        "http://localhost:5173",
-        "http://127.0.0.1:8000",
-        "http://127.0.0.1:5173",
-        "https://AmicanaProfesional.com",
-        "https://AmicanaProfesional.com:8000",
-    ]
+# Con credenciales (cookie de sesión) un "*" no es válido: se descarta.
+_CORS_POR_DEFECTO = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:5173",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:5173",
+    "https://AmicanaProfesional.com",
+    "https://AmicanaProfesional.com:8000",
+]
+def _normalizar_origen(o: str) -> str:
+    return o.strip().rstrip("/").lower()
+
+
+# Normalizados (los navegadores mandan el Origin en minúsculas y sin "/") para que CORS y el
+# chequeo de Origin coincidan.
+cors_origins = [_normalizar_origen(o) for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if "*" in cors_origins:
+    logger.warning("CORS_ORIGINS contiene '*': se ignora porque la sesión usa cookies con "
+                   "credenciales. Listá los orígenes explícitamente.")
+    cors_origins = [o for o in cors_origins if o != "*"]
+if not cors_origins:
+    cors_origins = [_normalizar_origen(o) for o in _CORS_POR_DEFECTO]
+
+
+@app.middleware("http")
+async def chequeo_de_origin(request: Request, call_next):
+    """En métodos inseguros, un Origin ajeno (ni el propio host ni CORS_ORIGINS) da 403.
+    Cubre también el login (login CSRF). Sin Origin (n8n, MP, API) pasa."""
+    if request.method not in sesion.METODOS_SEGUROS and not sesion.origen_permitido(request, cors_origins):
+        return JSONResponse(status_code=403, content={"ok": False, "mensaje": "Origen no permitido"})
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,

@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
 
+from .utils import sesion
+
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -38,12 +40,37 @@ def create_access_token(data: dict):
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 _optional_bearer = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+
+def _decodificar(token: str) -> dict:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
+
+
+def credenciales_de_usuario(request: Request, bearer: Optional[str]) -> Optional[dict]:
+    """Payload del JWT de la request: Bearer, o si no hay, la cookie de sesión.
+
+    Devuelve None si no hay ninguna de las dos; 401 si la que hay es inválida (no se cae
+    a la otra). Una sesión por cookie en un método inseguro exige además el header
+    X-CSRF-Token; el Bearer no, porque el navegador no lo manda solo. Primero se valida
+    el JWT (sesión inválida o vencida = 401) y recién después el CSRF.
+    """
+    if bearer:
+        return _decodificar(bearer)
+    token = sesion.token_de_cookie(request)
+    if not token:
+        return None
+    payload = _decodificar(token)
+    sesion.exigir_csrf(request, token)
+    return payload
+
+
+def get_current_user(request: Request, bearer: Optional[str] = Depends(_optional_bearer)):
+    payload = credenciales_de_usuario(request, bearer)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    return payload
 
 
 def is_chatbot(user: dict) -> bool:
@@ -60,12 +87,9 @@ def get_chatbot_or_current_user(
     request: Request,
     token: Optional[str] = Depends(_optional_bearer),
 ):
-    """Acepta JWT Bearer o X-Chatbot-Key para llamadas internas de n8n."""
+    """Acepta JWT Bearer, X-Chatbot-Key (n8n) o la cookie de sesión, en ese orden."""
     if token:
-        try:
-            return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Token inválido")
+        return _decodificar(token)
     chatbot_key = request.headers.get("X-Chatbot-Key")
     if chatbot_key and chatbot_key == CHATBOT_INTERNAL_KEY:
         chatbot_user = {"sub": "chatbot@amicana.com", "rol": "chatbot", "id": 0}
@@ -82,7 +106,10 @@ def get_chatbot_or_current_user(
                 # validará alumno_id contra la cuota igual.
                 print(f"⚠️  No se pudo cargar la sesión chatbot {session_id}: {e}")
         return chatbot_user
-    raise HTTPException(status_code=401, detail="No autenticado")
+    payload = credenciales_de_usuario(request, None)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    return payload
 
 
 def require_role(required_role: str):
