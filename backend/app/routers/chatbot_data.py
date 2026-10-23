@@ -14,6 +14,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from ..auth import get_chatbot_or_current_user, is_chatbot
 from ..database import get_connection
+from ..dependencies import chatbot_de_alumno
 from ..services.cuotas_service import marcar_cuotas_vencidas
 from ..utils.responses import error, ok
 
@@ -62,9 +63,8 @@ def identificar_alumno(data: IdentificarReq,
 
 @router.get("/alumno/{alumno_id}/estado-cuotas")
 def estado_cuotas_alumno(alumno_id: int,
-                         user: dict = Depends(get_chatbot_or_current_user)):
+                         user: dict = Depends(chatbot_de_alumno)):
     """Resumen de cuotas: pendientes, vencidas, pagadas, deuda y `apto_examen`."""
-    _solo_chatbot(user)
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -114,14 +114,13 @@ def estado_cuotas_alumno(alumno_id: int,
 
 @router.get("/alumno/{alumno_id}/aptitud-examen")
 def aptitud_examen(alumno_id: int,
-                   user: dict = Depends(get_chatbot_or_current_user)):
+                   user: dict = Depends(chatbot_de_alumno)):
     """Aptitud para exámenes internacionales.
 
     Combina: nivel actual del alumno (progreso_alumno → niveles.codigo),
     promedio general (notas_alumno) y cuotas vencidas. Devuelve por examen
     si está apto y con qué condiciones.
     """
-    _solo_chatbot(user)
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)

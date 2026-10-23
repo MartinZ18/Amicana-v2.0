@@ -348,6 +348,10 @@
             {
               "name": "X-Chatbot-Key",
               "value": "={{ $env.CHATBOT_INTERNAL_KEY }}"
+            },
+            {
+              "name": "X-Chatbot-Session-Id",
+              "value": "={{ $('Get Session History').first().json.session_id }}"
             }
           ]
         },

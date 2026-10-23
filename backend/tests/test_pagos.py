@@ -205,30 +205,40 @@ class TestPagarCuota:
         }
 
     def test_chatbot_puede_pagar_cuota_de_alumno_correcto(self):
+        # El chatbot solo paga con una sesión autenticada del dueño de la cuota.
         cur = _cur(one=self._cuota_row(alumno_id=2))
         with patch("app.routers.pagos.get_connection", return_value=_conn(cur)), \
+             self._sesion_del_duenio(), \
              patch("app.services.mercadopago_service.crear_pago",
                    return_value={"ok": True, "preference_id": "PREF-1",
                                  "init_point": "x", "sandbox_init_point": "x",
                                  "titulo": "t", "monto": 45000, "cantidad": 1}):
             r = client.post("/pagar-cuota/1",
                             json={"alumno_id": 2},
-                            headers=self.CHATBOT_HEADERS)
+                            headers={**self.CHATBOT_HEADERS, "X-Chatbot-Session-Id": "sess-1"})
         assert r.status_code == 200
         assert r.json()["ok"] is True
 
+    def _sesion_del_duenio(self):
+        """Sesión de chatbot autenticada para el dueño de la cuota (alumno 2)."""
+        return patch("app.models.chat_session.ChatSessionRepository.get_by_session_id",
+                     return_value=MagicMock(alumno_id=2))
+
     def test_chatbot_no_puede_pagar_cuota_de_alumno_ajeno(self):
         cur = _cur(one=self._cuota_row(alumno_id=2))
-        with patch("app.routers.pagos.get_connection", return_value=_conn(cur)):
+        with patch("app.routers.pagos.get_connection", return_value=_conn(cur)), \
+             self._sesion_del_duenio():
             r = client.post("/pagar-cuota/1",
                             json={"alumno_id": 99},
-                            headers=self.CHATBOT_HEADERS)
+                            headers={**self.CHATBOT_HEADERS, "X-Chatbot-Session-Id": "sess-1"})
         assert r.status_code == 403
 
     def test_chatbot_sin_alumno_id_es_403(self):
         cur = _cur(one=self._cuota_row(alumno_id=2))
-        with patch("app.routers.pagos.get_connection", return_value=_conn(cur)):
-            r = client.post("/pagar-cuota/1", headers=self.CHATBOT_HEADERS)
+        with patch("app.routers.pagos.get_connection", return_value=_conn(cur)), \
+             self._sesion_del_duenio():
+            r = client.post("/pagar-cuota/1",
+                            headers={**self.CHATBOT_HEADERS, "X-Chatbot-Session-Id": "sess-1"})
         assert r.status_code == 403
 
     def test_alumno_jwt_sigue_funcionando_en_pagar_cuota(self):
