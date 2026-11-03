@@ -204,4 +204,50 @@ test.describe('Sesión en cookie httpOnly – AMICANA', () => {
     await expect(page).toHaveURL(/index\.html/, { timeout: 8000 });
     expect((await page.request.get('/auth/me')).status()).toBe(401);
   });
+
+  test('SES-07: si el login anda pero /auth/me falla, se avisa y el botón se rehabilita (sin redirigir)', async ({ page }) => {
+    await page.route('**/auth/me', route =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'No autenticado' }) })
+    );
+    await iniciarSesion(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    await expect(page.locator('#loginMsg')).toContainText('No se pudo iniciar la sesión');
+    await expect(page.locator('[data-testid="login-submit"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="login-submit"]')).not.toHaveText(/Redirigiendo/);
+    // Pasada la demora del redirect normal (700 ms) seguimos en el login.
+    await page.waitForTimeout(1200);
+    await expect(page).toHaveURL(/index\.html/);
+  });
+
+  test('SES-08: el chat de un usuario no pasa al siguiente aunque su sesión haya vencido (401) en vez de cerrarla', async ({ page, context }) => {
+    await iniciarSesion(page, ALUMNO_EMAIL, ALUMNO_PASSWORD);
+    await expect(page).toHaveURL(/alumno\.html/, { timeout: 8000 });
+
+    // El widget guarda el id del chat del alumno.
+    await page.evaluate(() => {
+      localStorage.setItem('amicana_chat_session', JSON.stringify({ id: 'sess_del_alumno', createdAt: Date.now() }));
+      sessionStorage.setItem('gp_perfil_omitido', '1');
+    });
+
+    // La sesión vence: sin cookie, la primera llamada autenticada da 401 y manda al login (sin logout explícito).
+    await context.clearCookies({ name: 'amicana_session' });
+    await page.evaluate(() => apiFetch('/mis-cuotas'));
+    await expect(page).toHaveURL(/index\.html/, { timeout: 8000 });
+    await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
+
+    // Otro usuario entra en el mismo navegador: no hereda el chat anterior.
+    await iniciarSesion(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await expect(page).toHaveURL(/admin\.html/, { timeout: 8000 });
+    expect(await page.evaluate(() => localStorage.getItem('amicana_chat_session'))).toBeNull();
+    expect(await page.evaluate(() => sessionStorage.getItem('gp_perfil_omitido'))).toBeNull();
+  });
+
+  test('SES-09: una cookie malformada no rompe la página (leerCookie no lanza)', async ({ page }) => {
+    await page.goto('/app/index.html');
+    const valor = await page.evaluate(() => {
+      document.cookie = 'amicana_csrf=%E0%A4%A; path=/';
+      return window.leerCookie('amicana_csrf');
+    });
+    expect(valor).toBeNull();
+  });
 });

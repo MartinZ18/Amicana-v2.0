@@ -16,7 +16,8 @@
         for (var i = 0; i < partes.length; i++) {
             var idx = partes[i].indexOf('=');
             if (idx > 0 && partes[i].slice(0, idx) === nombre) {
-                return decodeURIComponent(partes[i].slice(idx + 1));
+                try { return decodeURIComponent(partes[i].slice(idx + 1)); }
+                catch (_) { return null; }
             }
         }
         return null;
@@ -27,7 +28,16 @@
         return /\/index\.html$/.test(p) || /\/$/.test(p);
     }
 
+    /* Datos de navegador atados al usuario: no pasan de una sesión a la siguiente. */
+    function limpiarDatosDeSesion() {
+        try {
+            sessionStorage.removeItem('gp_perfil_omitido');
+            localStorage.removeItem('amicana_chat_session');
+        } catch (_) { /* storage no disponible */ }
+    }
+
     function irALogin() {
+        limpiarDatosDeSesion();
         if (!esPaginaLogin()) window.location.href = LOGIN_URL;
     }
 
@@ -78,15 +88,13 @@
             window.alert('No se pudo cerrar la sesión. Intentá de nuevo.');
             return;
         }
-        try {
-            sessionStorage.removeItem('gp_perfil_omitido');
-            localStorage.removeItem('amicana_chat_session'); /* el chat no pasa de un usuario al siguiente */
-        } catch (_) { /* storage no disponible */ }
+        limpiarDatosDeSesion();
         window.location.href = LOGIN_URL;
     }
 
     window.leerCookie = leerCookie;
     window.obtenerSesion = obtenerSesion;
+    window.limpiarDatosDeSesion = limpiarDatosDeSesion;
     window.apiFetch = apiFetch;
     window.cerrarSesion = cerrarSesion;
 })();

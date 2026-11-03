@@ -395,8 +395,16 @@ async function login(e) {
         if (res.ok) {
             /* La sesión quedó en la cookie httpOnly; el rol sale de /auth/me. */
             const sesion = await obtenerSesion();
+            if (!sesion || !sesion.rol) {
+                showMsg('loginMsg', 'No se pudo iniciar la sesión. Revisá que el navegador acepte cookies e intentá de nuevo.', 'error');
+                btn.disabled = false;
+                btn.setAttribute('aria-busy', 'false');
+                btn.textContent = 'Ingresar';
+                return;
+            }
+            limpiarDatosDeSesion();
             showMsg('loginMsg', 'Acceso concedido. Redirigiendo...', 'success');
-            setTimeout(() => redirectByRol(sesion && sesion.rol), 700);
+            setTimeout(() => redirectByRol(sesion.rol), 700);
         } else {
             showMsg('loginMsg', data.detail || 'Credenciales incorrectas', 'error');
             btn.disabled = false;
@@ -446,9 +454,10 @@ async function crearUsuario(e) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),
                 });
-                if (loginRes.ok) {
-                    const sesion = await obtenerSesion();
-                    setTimeout(() => redirectByRol(sesion && sesion.rol), 600);
+                const sesion = loginRes.ok ? await obtenerSesion() : null;
+                if (sesion && sesion.rol) {
+                    limpiarDatosDeSesion();
+                    setTimeout(() => redirectByRol(sesion.rol), 600);
                     return;
                 }
             } catch (_) { /* auto-login falló, caer al mensaje manual */ }
@@ -482,6 +491,8 @@ async function resolverSesionExistente() {
     const sesion = await obtenerSesion();
     if (!sesion) return false;
     _gpRol = sesion.rol;
+    /* Entrada por Google: el chat de un usuario anterior no pasa a este. */
+    try { localStorage.removeItem('amicana_chat_session'); } catch (_) { /* storage no disponible */ }
 
     /* Solo mostramos el modal a alumnos que ingresan por Google */
     if (_gpRol === 'alumno' && sesion.auth_provider === 'google'
