@@ -102,7 +102,10 @@ test.describe('Sesión en cookie httpOnly – AMICANA', () => {
     await page.locator('#avisoContenido').fill('Creado por el test E2E de sesión');
     const respuesta = page.waitForResponse(r => r.url().endsWith('/avisos') && r.request().method() === 'POST');
     await page.locator('#btnGuardarAviso').click();
-    expect((await respuesta).status()).toBe(200);
+    const creada = await respuesta;
+    expect(creada.status()).toBe(200);
+    // El cuerpo se lee ahora: después de recargar la página el navegador ya no lo conserva.
+    const idAviso = (await creada.json()).data.id;
     await expect(page.locator('#avisosMsg')).toContainText('Aviso publicado');
     await expect(page.locator('#tablaAvisos')).toContainText(titulo);
 
@@ -114,7 +117,6 @@ test.describe('Sesión en cookie httpOnly – AMICANA', () => {
 
     // Y se borra con DELETE (otro método inseguro) usando el mismo apiFetch que usa la página;
     // el botón Eliminar de la tabla se prueba en xss-eliminar.spec.js.
-    const idAviso = (await (await respuesta).json()).data.id;
     const borrado = page.waitForResponse(r => r.url().endsWith(`/avisos/${idAviso}`) && r.request().method() === 'DELETE');
     await page.evaluate(id => apiFetch(`/avisos/${id}`, { method: 'DELETE' }), idAviso);
     expect((await borrado).status()).toBe(200);
