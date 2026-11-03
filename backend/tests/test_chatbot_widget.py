@@ -25,7 +25,8 @@ def test_widget_js_has_required_elements():
     content = open(path, encoding="utf-8").read()
 
     assert "session_id" in content, "falta manejo de session_id"
-    assert "sessionStorage" in content, "falta uso de sessionStorage"
+    assert "amicana_token" not in content and "X-User-Token" not in content, \
+        "el widget no debe leer tokens de autenticación desde el storage"
     assert "fetch" in content, "falta llamada fetch al webhook"
     assert "data-webhook" in content, "falta soporte de data-webhook"
     assert "amicana-chat-bubble" in content, "falta el elemento burbuja"

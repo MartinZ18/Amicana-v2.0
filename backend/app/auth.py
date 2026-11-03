@@ -66,6 +66,19 @@ def credenciales_de_usuario(request: Request, bearer: Optional[str]) -> Optional
     return payload
 
 
+def jwt_de_sesion_valida(request: Request) -> Optional[str]:
+    """El JWT de la cookie de sesión si es válido y está vigente; None si falta o no sirve.
+    Nunca levanta: sirve para endpoints que son anónimos salvo que haya una sesión buena."""
+    token = sesion.token_de_cookie(request)
+    if not token:
+        return None
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        return None
+    return token
+
+
 def get_current_user(request: Request, bearer: Optional[str] = Depends(_optional_bearer)):
     payload = credenciales_de_usuario(request, bearer)
     if payload is None:

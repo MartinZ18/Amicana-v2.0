@@ -32,7 +32,7 @@
   // ── Session ID — localStorage con TTL 7 días ───────────────────────────────
 
   function getSessionId() {
-    const KEY = "amicana_session";
+    const KEY = "amicana_chat_session";
     try {
       const stored = localStorage.getItem(KEY);
       if (stored) {
@@ -49,15 +49,10 @@
     return id;
   }
 
-  // ── JWT del alumno (pre-auth 5.2) ─────────────────────────────────────────
+  // ── Red: apiFetch (frontend/sesion.js) agrega el CSRF de la sesión en los POST ──
 
-  function getUserToken() {
-    try {
-      return sessionStorage.getItem("amicana_token") ||
-             localStorage.getItem("amicana_token") || null;
-    } catch (_) {
-      return null;
-    }
+  function api(url, opts) {
+    return (window.apiFetch || fetch)(url, opts);
   }
 
   // ── HTML del widget ────────────────────────────────────────────────────────
@@ -109,6 +104,12 @@
     if (container) container.scrollTop = container.scrollHeight;
   }
 
+
+  // Solo se renderizan enlaces http(s) o rutas relativas del mismo origen (no javascript:, data:, //host).
+  function urlSegura(u) {
+    return typeof u === "string" && /^(https?:\/\/|\/(?!\/))/i.test(u);
+  }
+
   function addMessage(role, content) {
     const container = document.getElementById("amicana-chat-messages");
     const wrapper = document.createElement("div");
@@ -125,14 +126,14 @@
         txt.textContent = content.text;
         bubble.appendChild(txt);
       }
-      if (content.qr_url) {
+      if (urlSegura(content.qr_url)) {
         const img = document.createElement("img");
         img.src = content.qr_url;
         img.alt = "QR de pago";
         img.className = "qr-img";
         bubble.appendChild(img);
       }
-      if (content.pdf_url) {
+      if (urlSegura(content.pdf_url)) {
         const link = document.createElement("a");
         link.href = content.pdf_url;
         link.target = "_blank";
@@ -215,7 +216,7 @@
     const panel = document.getElementById("amicana-faq-panel");
     if (!panel) return;
     try {
-      const r = await fetch("/chatbot/faq");
+      const r = await api("/chatbot/faq");
       if (!r.ok) return;
       const d = await r.json();
       const items = (d.data && d.data.faq) || d.faq || [];
@@ -260,7 +261,7 @@
 
   async function loadWelcomeMessage() {
     try {
-      const r = await fetch("/chatbot/welcome");
+      const r = await api("/chatbot/welcome");
       if (!r.ok) return null;
       const d = await r.json();
       return (d.data && d.data.texto) || d.texto || null;
@@ -291,13 +292,10 @@
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    // Headers — incluye JWT si está disponible (5.2)
     const headers = { "Content-Type": "application/json" };
-    const userToken = getUserToken();
-    if (userToken) headers["X-User-Token"] = userToken;
 
     try {
-      const res = await fetch(WEBHOOK_URL, {
+      const res = await api(WEBHOOK_URL, {
         method: "POST",
         headers,
         body: JSON.stringify({

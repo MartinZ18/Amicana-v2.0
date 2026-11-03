@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .auth import hash_password
+from .auth import hash_password, jwt_de_sesion_valida
 from .database import get_connection
 from .utils import sesion
 from .utils.rate_limit import SlidingWindowLimiter, client_ip
@@ -208,6 +208,9 @@ async def chatbot_proxy(request: Request):
     Cualquier error de red o respuesta vacía cae al fallback amigable y queda
     registrado con `logger.exception` para debug — el usuario ve un mensaje
     genérico, los operadores ven el traceback completo en logs.
+
+    Con una cookie de sesión válida el chat es de ese usuario: exige el CSRF firmado y reenvía
+    el JWT a n8n como `user_token`. Sin cookie, o con una inválida, el chat es anónimo.
     """
     import requests as req_lib
 
@@ -217,12 +220,21 @@ async def chatbot_proxy(request: Request):
         "pdf_url": None,
     }
 
+    session_jwt = jwt_de_sesion_valida(request)
+    if session_jwt:
+        # Autenticado por cookie: mismo CSRF firmado que el resto de los métodos inseguros.
+        sesion.exigir_csrf(request, session_jwt)
+
     try:
         body = await request.json()
     except Exception:
         logger.warning("[chatbot proxy] body inválido o no-JSON desde el widget")
         return _fallback
 
+    # La identidad del chat sale solo de la cookie de sesión (nunca del body ni de headers que
+    # mande el cliente): se saca cualquier user_token que venga en el body.
+    if isinstance(body, dict):
+        body = {k: v for k, v in body.items() if k != "user_token"}
     session_id = (body or {}).get("session_id", "<sin-session>")
 
     if _chatbot_limiter.hit(client_ip(request)):
@@ -234,10 +246,8 @@ async def chatbot_proxy(request: Request):
             "qr_url": None, "pdf_url": None,
         })
 
-    # Forward X-User-Token si el widget lo envía (pre-auth)
-    user_token = request.headers.get("X-User-Token")
-    if user_token and body:
-        body = {**body, "user_token": user_token}
+    if session_jwt and body:
+        body = {**body, "user_token": session_jwt}
 
     n8n_url = os.environ.get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/amicana-chatbot")
     timeout_s = float(os.environ.get("N8N_TIMEOUT_SECONDS", "30"))

@@ -88,15 +88,20 @@ def _puerto_libre():
 
 
 class _ServidorFalso:
-    """Hace de Google (POST /token, GET /userinfo) y de Mercado Pago (GET /v1/payments/<id>)."""
+    """Hace de Google (POST /token, GET /userinfo), de Mercado Pago (GET /v1/payments/<id>)
+    y de n8n (POST /n8n: guarda el JSON que le reenvía el proxy del chatbot)."""
 
     def __init__(self, google_user):
         self.google_user = google_user
         self.pagos = {}
+        self.n8n = []
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self):
+                if urlparse(self.path).path == "/n8n":
+                    fake.n8n.append(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0)))))
+                    return self._responder(200, {"text": "hola desde n8n"})
                 if urlparse(self.path).path == "/token":
                     self.rfile.read(int(self.headers.get("Content-Length", 0)))
                     return self._responder(200, {"access_token": "token-falso-de-google"})
@@ -176,6 +181,8 @@ def server(externos):
         "GOOGLE_CLIENT_SECRET": secrets.token_urlsafe(16),
         "GOOGLE_REDIRECT_URI": f"{base}/auth/google/callback",
         "GOOGLE_POST_LOGIN_REDIRECT": f"{base}/app/index.html",
+        "N8N_WEBHOOK_URL": f"http://127.0.0.1:{externos.port}/n8n",
+        "CHATBOT_RATE_LIMIT": "1000",
         "SESSION_COOKIE_SECURE": "0",
         "AUTH_RATE_LIMIT": "1000",
         # El "*" tiene que ignorarse: con credenciales no puede ser un origen válido.
@@ -487,6 +494,53 @@ def test_crear_staff_con_la_cookie_de_admin_exige_csrf(server):
     # El registro público de un alumno no depende de ninguna cookie.
     publico = {**nuevo(), "rol": "alumno"}
     assert requests.post(server + "/auth/register", json=publico).status_code == 200
+
+
+# ── chatbot: el proxy reenvía la sesión a n8n ──────────────────────────────
+
+def _chat(s, base, headers=None, **extra):
+    return s.post(base + "/chatbot", headers=headers or {},
+                  json={"session_id": f"sesion-e2e-{secrets.token_hex(4)}", "message": "hola", **extra})
+
+
+def test_chatbot_reenvia_a_n8n_el_jwt_de_la_cookie_con_csrf_valido(server, externos):
+    s, _, _ = _login_alumno(server)
+    r = _chat(s, server, {"X-CSRF-Token": s.cookies["amicana_csrf"]})
+    assert r.status_code == 200 and r.json()["text"] == "hola desde n8n", r.text
+    assert len(externos.n8n) == 1
+    assert externos.n8n[0]["user_token"] == s.cookies["amicana_session"]
+    assert externos.n8n[0]["message"] == "hola"
+
+
+def test_chatbot_con_cookie_sin_csrf_da_403_y_no_llega_a_n8n(server, externos):
+    s, _, _ = _login_alumno(server)
+    assert _chat(s, server).status_code == 403
+    assert _chat(s, server, {"X-CSRF-Token": "plantado"}).status_code == 403
+    assert externos.n8n == []
+
+
+def test_chatbot_anonimo_sin_cookie_no_manda_user_token(server, externos):
+    r = _chat(requests, server)
+    assert r.status_code == 200 and r.json()["text"] == "hola desde n8n", r.text
+    assert len(externos.n8n) == 1 and "user_token" not in externos.n8n[0]
+
+
+def test_chatbot_con_cookie_basura_sigue_anonimo(server, externos):
+    s = requests.Session()
+    s.cookies.set("amicana_session", "basura.sin.firma", path="/")
+    r = _chat(s, server)
+    assert r.status_code == 200 and r.json()["text"] == "hola desde n8n", r.text
+    assert len(externos.n8n) == 1 and "user_token" not in externos.n8n[0]
+
+
+def test_chatbot_ya_no_reenvia_el_header_x_user_token(server, externos):
+    alumno = _alumno()
+    jwt = requests.post(server + "/auth/login",
+                        json={"email": alumno["email"], "password": ALUMNO_PASSWORD}).json()["access_token"]
+    # Ni por header ni metiéndolo en el body: la identidad sale solo de la cookie.
+    r = _chat(requests, server, {"X-User-Token": jwt}, user_token=jwt)
+    assert r.status_code == 200, r.text
+    assert len(externos.n8n) == 1 and "user_token" not in externos.n8n[0]
 
 
 # ── 6. logout ──────────────────────────────────────────────────────────────

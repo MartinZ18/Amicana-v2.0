@@ -1,5 +1,8 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { claveDePrueba } from '../helpers/claves.js';
+
+const CLAVE = claveDePrueba();
 
 /**
  * Actividad 3 — Suite de Regresión: AMICANA 2.0
@@ -33,6 +36,45 @@ function makeToken(sub, rol, id) {
   return `${header}.${pay}.fakesignature`;
 }
 
+/**
+ * La sesión real es una cookie httpOnly que setea el servidor. Con el login mockeado
+ * no hay cookie, así que el frontend (que pregunta a GET /auth/me quién es) recibe
+ * un usuario mockeado mientras la sesión esté "activa". Arranca inactiva (/auth/me da 401),
+ * se activa cuando un login responde OK y POST /auth/logout la apaga, como el backend real.
+ * Devuelve el estado para que un test pueda simular una sesión vencida (activa = false).
+ */
+async function mockSesion(page, email, rol, id) {
+  const estado = { activa: false };
+  page.on('response', r => {
+    if (/\/(auth\/)?login$/.test(new URL(r.url()).pathname) && r.ok()) estado.activa = true;
+  });
+  await page.route('**/auth/me', route =>
+    estado.activa
+      ? route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id, nombre: 'Test', email, rol, auth_provider: 'local' }),
+        })
+      : route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'No autenticado' }),
+        })
+  );
+  await page.route('**/auth/logout', route => {
+    estado.activa = false;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+  return estado;
+}
+
+/** Sin sesión: /auth/me responde 401, como el backend sin cookie válida. */
+async function mockSinSesion(page) {
+  await page.route('**/auth/me', route =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'No autenticado' }) })
+  );
+}
+
 async function blockUnmatchedApi(page) {
   await page.route('**/*', route => {
     const url = route.request().url();
@@ -50,6 +92,7 @@ async function irAlLogin(page) {
 async function loginExitoso(page, rol = 'alumno', id = 1) {
   const token = makeToken(`${rol}@amicana.com`, rol, id);
   await blockUnmatchedApi(page);
+  await mockSesion(page, `${rol}@amicana.com`, rol, id);
   await page.route('**/login', route =>
     route.fulfill({
       status: 200,
@@ -76,9 +119,11 @@ test.describe('FC-01 · Login @regresion @smoke', () => {
 
     await expect(page).toHaveURL(/alumno\.html/, { timeout: 8000 });
 
-    const guardado = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(guardado).not.toBeNull();
-    expect(guardado).toBe(token);
+    // El token del body no se guarda: la sesión va en cookie httpOnly
+    const guardados = await page.evaluate(() => [
+      ...Object.values(localStorage), ...Object.values(sessionStorage),
+    ]);
+    expect(guardados.some(v => v.includes(token))).toBe(false);
   });
 
   test('REG-02: login con contraseña incorrecta muestra error y no redirige @smoke', async ({ page }) => {
@@ -127,7 +172,7 @@ test.describe('FC-02 · Alta de usuario @regresion', () => {
       data: {
         nombre:   `Alumno Reg ${ts}`,
         email:    `reg_${ts}@example.com`,
-        password: 'TestPass2024!',
+        password: CLAVE,
         rol:      'alumno',
       },
     });
@@ -140,7 +185,7 @@ test.describe('FC-02 · Alta de usuario @regresion', () => {
   test('REG-05: usuario registrado por API puede iniciar sesión', async ({ page }) => {
     const ts = Date.now();
     const email    = `reglogin_${ts}@example.com`;
-    const password = 'TestPass2024!';
+    const password = CLAVE;
 
     await page.request.post(`${API_BASE}/auth/register`, {
       data: { nombre: `Reg Login ${ts}`, email, password, rol: 'alumno' },
@@ -163,6 +208,7 @@ test.describe('FC-02 · Alta de usuario @regresion', () => {
     const token = makeToken(email, 'alumno', 99);
 
     await blockUnmatchedApi(page);
+    await mockSesion(page, email, 'alumno', 99);
     await page.route('**/auth/register', route =>
       route.fulfill({
         status: 200,
@@ -238,7 +284,7 @@ test.describe('FC-03 · Consulta a API externa (MercadoPago) @regresion', () => 
     // Con token válido y cuota inexistente → error controlado (no 500 genérico)
     const ts = Date.now();
     const email    = `mp_test_${ts}@example.com`;
-    const password = 'MPTest2024!';
+    const password = CLAVE;
     await page.request.post(`${API_BASE}/auth/register`, {
       data: { nombre: `MP Test ${ts}`, email, password, rol: 'alumno' },
     });
@@ -259,6 +305,7 @@ test.describe('FC-03 · Consulta a API externa (MercadoPago) @regresion', () => 
     const INIT_POINT = 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=TEST-REG09';
 
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'alumno@amicana.com', 'alumno', 1);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,
@@ -282,11 +329,7 @@ test.describe('FC-03 · Consulta a API externa (MercadoPago) @regresion', () => 
 
     // Llamar al endpoint de pago desde el contexto de la página (simula lo que hace el botón Pagar)
     const resultado = await page.evaluate(async () => {
-      const token = sessionStorage.getItem('token');
-      const res = await fetch('/pagar-cuota/1', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch('/pagar-cuota/1', { method: 'POST' });
       return { status: res.status, body: await res.json() };
     });
 
@@ -297,6 +340,7 @@ test.describe('FC-03 · Consulta a API externa (MercadoPago) @regresion', () => 
 
   test('REG-10: error 500 en pagar-cuota es gestionado sin romper la sesión', async ({ page }) => {
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'alumno@amicana.com', 'alumno', 1);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,
@@ -320,19 +364,14 @@ test.describe('FC-03 · Consulta a API externa (MercadoPago) @regresion', () => 
 
     // El endpoint devuelve 500 — la página no debe redirigir al login (no es 401)
     const resultado = await page.evaluate(async () => {
-      const token = sessionStorage.getItem('token');
-      const res = await fetch('/pagar-cuota/1', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch('/pagar-cuota/1', { method: 'POST' });
       return { status: res.status };
     });
 
     expect(resultado.status).toBe(500);
-    // La sesión sigue activa — el token no fue eliminado
-    const tokenDespues = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(tokenDespues).not.toBeNull();
+    // La sesión sigue activa — un 500 no es un 401, no se cierra la sesión
     await expect(page).toHaveURL(/alumno\.html/);
+    expect(await page.evaluate(async () => (await fetch('/auth/me')).status)).toBe(200);
   });
 
 });
@@ -347,7 +386,7 @@ test.describe('FC-04 · Modificación @regresion', () => {
   test('REG-11: PUT /perfil actualiza los datos del usuario (API real)', async ({ page }) => {
     const ts       = Date.now();
     const email    = `mod_${ts}@example.com`;
-    const password = 'Mod2024!';
+    const password = CLAVE;
 
     await page.request.post(`${API_BASE}/auth/register`, {
       data: { nombre: `Modificar ${ts}`, email, password, rol: 'alumno' },
@@ -377,6 +416,7 @@ test.describe('FC-04 · Modificación @regresion', () => {
 
   test('REG-12: PUT /perfil mockeado devuelve confirmación y actualiza los datos', async ({ page }) => {
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'alumno@amicana.com', 'alumno', 1);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,
@@ -408,10 +448,9 @@ test.describe('FC-04 · Modificación @regresion', () => {
 
     // Verificar que PUT /perfil devuelve ok desde el contexto de la página
     const resultado = await page.evaluate(async () => {
-      const token = sessionStorage.getItem('token');
-      const res = await fetch('/perfil', {
+      const res = await apiFetch('/perfil', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'alumno@amicana.com', telefono: '1199999999' }),
       });
       return { status: res.status, body: await res.json() };
@@ -431,30 +470,32 @@ test.describe('FC-04 · Modificación @regresion', () => {
 
 test.describe('FC-05 · Logout y protección de rutas @regresion @smoke', () => {
 
-  test('REG-13: cerrar sesión limpia sessionStorage y redirige al login', async ({ page }) => {
+  test('REG-13: cerrar sesión cierra la sesión en el servidor y redirige al login', async ({ page }) => {
     await loginExitoso(page, 'alumno', 1);
     await page.waitForURL(/alumno\.html/, { timeout: 8000 });
 
-    const tokenAntes = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(tokenAntes).not.toBeNull();
+    expect(await page.evaluate(async () => (await fetch('/auth/me')).status)).toBe(200);
 
+    const logout = page.waitForRequest(r => r.url().endsWith('/auth/logout') && r.method() === 'POST');
     await page.locator('[data-testid="btn-logout"]').click();
+    await logout;
 
     await expect(page).toHaveURL(/index\.html/, { timeout: 6000 });
-    const tokenDespues = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(tokenDespues).toBeNull();
+    expect(await page.evaluate(async () => (await fetch('/auth/me')).status)).toBe(401);
   });
 
   test('REG-14: acceder al dashboard sin token redirige al login @smoke', async ({ page }) => {
     await blockUnmatchedApi(page);
+    await mockSinSesion(page);
     await page.goto('/app/alumno.html');
     await expect(page).toHaveURL(/index\.html/, { timeout: 6000 });
   });
 
-  test('REG-15: token malformado no permite acceso al dashboard @smoke', async ({ page }) => {
+  test('REG-15: cookie de sesión inválida no permite acceso al dashboard @smoke', async ({ page }) => {
+    // El servidor real responde 401 a /auth/me con una cookie inválida; acá solo se mockea esa respuesta.
     await blockUnmatchedApi(page);
-    await page.goto('/app/index.html');
-    await page.evaluate(() => sessionStorage.setItem('token', 'token.invalido.xxx'));
+    await mockSinSesion(page);
+    await page.context().addCookies([{ name: 'amicana_session', value: 'token.invalido.xxx', url: 'http://localhost:8000' }]);
     await page.goto('/app/alumno.html');
     await expect(page).toHaveURL(/index\.html/, { timeout: 6000 });
   });
@@ -478,7 +519,7 @@ test.describe('FC-05 · Logout y protección de rutas @regresion @smoke', () => 
   test('REG-18: con token válido GET /mis-cuotas devuelve 200 @smoke', async ({ page }) => {
     const ts = Date.now();
     const email = `rutaprot_${ts}@example.com`;
-    const password = 'TestPass2024!';
+    const password = CLAVE;
 
     await page.request.post(`${API_BASE}/auth/register`, {
       data: { nombre: `Ruta Prot ${ts}`, email, password, rol: 'alumno' },
@@ -573,6 +614,7 @@ test.describe('FC-07 · Mensajes de error y confirmación @regresion', () => {
   test('REG-24: login exitoso muestra mensaje de confirmación antes de redirigir', async ({ page }) => {
     const token = makeToken('alumno@amicana.com', 'alumno', 1);
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'alumno@amicana.com', 'alumno', 1);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,
@@ -593,6 +635,7 @@ test.describe('FC-07 · Mensajes de error y confirmación @regresion', () => {
 
   test('REG-25: cuotas vacías muestran mensaje de estado vacío en la UI', async ({ page }) => {
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'alumno@amicana.com', 'alumno', 1);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,
@@ -629,12 +672,11 @@ test.describe('FC-07 · Mensajes de error y confirmación @regresion', () => {
 test.describe('FC-08 · Eliminación @regresion', () => {
 
   async function loginAdmin(request) {
-    // Intenta credenciales default del seed; si falla hace skip del test
-    const candidatos = [
-      { username: 'admin@amicana.com', password: 'admin1234' },
-      { username: 'admin@amicana.com', password: 'admin123' },
-      { username: 'admin@amicana.com', password: 'Admin123!' },
-    ];
+    // Credenciales del admin desde el entorno (E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD);
+    // sin ellas el test se saltea.
+    const candidatos = process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD
+      ? [{ username: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD }]
+      : [];
     for (const creds of candidatos) {
       const form = new URLSearchParams();
       form.set('username', creds.username);
@@ -657,7 +699,7 @@ test.describe('FC-08 · Eliminación @regresion', () => {
     const paraEliminar = {
       nombre:   `Para Eliminar ${ts}`,
       email:    `eliminar_${ts}@example.com`,
-      password: 'Eliminar2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await page.request.post(`${API_BASE}/auth/register`, { data: paraEliminar });
@@ -683,7 +725,7 @@ test.describe('FC-08 · Eliminación @regresion', () => {
     const paraEliminar = {
       nombre:   `Del Login ${ts}`,
       email:    `dellog_${ts}@example.com`,
-      password: 'Eliminar2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await page.request.post(`${API_BASE}/auth/register`, { data: paraEliminar });
@@ -715,7 +757,7 @@ test.describe('FC-08 · Eliminación @regresion', () => {
     const paraEliminar = {
       nombre:   `Del UI ${ts}`,
       email:    `delui_${ts}@example.com`,
-      password: 'Eliminar2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await page.request.post(`${API_BASE}/auth/register`, { data: paraEliminar });
@@ -734,7 +776,9 @@ test.describe('FC-08 · Eliminación @regresion', () => {
       headers: { Authorization: `Bearer ${tokenAdmin}` },
     });
 
-    // Verificar en la UI que el login falla y muestra error
+    // Verificar en la UI que el login falla y muestra error (navegador sin sesiones previas:
+    // page.request comparte las cookies con la página)
+    await page.context().clearCookies();
     await page.goto('/app/index.html');
     await page.locator('[data-testid="login-email"]').fill(paraEliminar.email);
     await page.locator('[data-testid="login-password"]').fill(paraEliminar.password);
