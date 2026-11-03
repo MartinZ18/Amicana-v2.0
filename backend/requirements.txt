@@ -1,16 +1,16 @@
 # Instalados en el venv (versiones reales)
-fastapi==0.135.1
+fastapi==0.162.0
 uvicorn[standard]==0.41.0
 pydantic==2.12.5
 pydantic[email]
-python-multipart
-python-jose[cryptography]
+python-multipart>=0.0.33
+PyJWT>=2.10
 passlib[bcrypt]
 bcrypt==5.0.0
 mysql-connector-python==9.6.0
 python-dotenv
 requests
 httpx
-Pillow
+Pillow>=13.0.0
 qrcode
 reportlab>=4.0

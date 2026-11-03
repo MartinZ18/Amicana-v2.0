@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 import bcrypt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -44,7 +45,7 @@ _optional_bearer = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 def _decodificar(token: str) -> dict:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 
 
@@ -74,7 +75,7 @@ def jwt_de_sesion_valida(request: Request) -> Optional[str]:
         return None
     try:
         jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
+    except PyJWTError:
         return None
     return token
 
