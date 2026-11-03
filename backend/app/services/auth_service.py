@@ -56,18 +56,24 @@ def registrar_usuario(nombre: str, email: str, password: str, rol: str) -> dict:
     return {"id": new_id, "email": email, "rol": rol, "nombre": nombre}
 
 
+# Hash de relleno: si el email no existe se verifica contra este para que la respuesta tarde
+# lo mismo que con una contraseña errónea (misma dificultad de bcrypt que hash_password).
+_HASH_RELLENO = hash_password("relleno-para-igualar-tiempos")
+
+
 def autenticar(email: str, password: str) -> dict:
     """Valida credenciales y devuelve `{access_token, rol, id, nombre}`.
 
     Lanza:
-      - LookupError si el usuario no existe.
       - PermissionError si la cuenta es OAuth (password NULL en BD).
-      - ValueError si la contraseña no coincide.
+      - ValueError si la contraseña no coincide o el usuario no existe (indistinguibles
+        por mensaje y por tiempo).
     """
     user = buscar_usuario_por_email(email)
     if not user:
         auditoria_service.registrar(email, "login_fallido", "usuario inexistente")
-        raise LookupError("Usuario no encontrado")
+        verify_password(password, _HASH_RELLENO)
+        raise ValueError("Contraseña incorrecta")
 
     if user.get("password") is None:
         auditoria_service.registrar(email, "login_fallido", "cuenta google sin password local")
