@@ -1,5 +1,8 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { claveDePrueba } from '../helpers/claves.js';
+
+const CLAVE = claveDePrueba();
 
 /**
  * Actividad 2 — Spec 1: API Testing sobre endpoints reales de AMICANA
@@ -23,7 +26,7 @@ test.beforeAll(async ({ request }) => {
   testUser = {
     nombre:   `Test API ${ts}`,
     email:    `testapi_${ts}@example.com`,
-    password: 'TestPass2024!',
+    password: CLAVE,
     rol:      'alumno',
   };
   const res = await request.post(`${API_BASE}/auth/register`, { data: testUser });
@@ -85,7 +88,7 @@ test.describe('API: Registro de usuarios @api', () => {
       data: {
         nombre:   `Nuevo ${ts}`,
         email:    `nuevo_${ts}@example.com`,
-        password: 'TestPass2024!',
+        password: CLAVE,
         rol:      'alumno',
       },
     });
@@ -100,7 +103,7 @@ test.describe('API: Registro de usuarios @api', () => {
       data: {
         nombre:   'Duplicado',
         email:    testUser.email,
-        password: 'TestPass2024!',
+        password: CLAVE,
         rol:      'alumno',
       },
     });
@@ -124,7 +127,7 @@ test.describe('API + UI: Crear usuario y verificar visualización @api @smoke', 
     const usuario = {
       nombre:   `Alumno Visual ${ts}`,
       email:    `visual_${ts}@example.com`,
-      password: 'Visual2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     const regRes = await request.post(`${API_BASE}/auth/register`, { data: usuario });
@@ -153,15 +156,11 @@ test.describe('API + UI: Crear usuario y verificar visualización @api @smoke', 
     await page.locator('[data-testid="login-submit"]').click();
     await expect(page).toHaveURL(/alumno\.html/, { timeout: 8000 });
 
-    // Paso 4: el token en sessionStorage pertenece al usuario creado
-    const payload = await page.evaluate(() => {
-      const t = sessionStorage.getItem('token');
-      if (!t) return null;
-      const p = t.split('.')[1];
-      return JSON.parse(atob(p + '='.repeat((4 - p.length % 4) % 4)));
-    });
-    expect(payload).not.toBeNull();
-    expect(payload.sub).toBe(usuario.email);
+    // Paso 4: la sesión (cookie httpOnly) pertenece al usuario creado y no hay token en storage
+    const sesion = await page.evaluate(async () => (await fetch('/auth/me')).json());
+    expect(sesion.email).toBe(usuario.email);
+    expect(await page.evaluate(() => sessionStorage.getItem('token'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
   });
 
   test('TC-API-06: perfil del alumno creado por API es accesible via /auth/me', async ({ request }) => {
@@ -169,7 +168,7 @@ test.describe('API + UI: Crear usuario y verificar visualización @api @smoke', 
     const usuario = {
       nombre:   `Perfil Check ${ts}`,
       email:    `perfil_${ts}@example.com`,
-      password: 'Perfil2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await request.post(`${API_BASE}/auth/register`, { data: usuario });
@@ -257,7 +256,7 @@ test.describe('API: Eliminación de alumnos @api', () => {
     const paraEliminar = {
       nombre:   `Para Eliminar ${ts}`,
       email:    `eliminar_${ts}@example.com`,
-      password: 'Eliminar2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await request.post(`${API_BASE}/auth/register`, { data: paraEliminar });
@@ -288,7 +287,7 @@ test.describe('API: Eliminación de alumnos @api', () => {
     const paraEliminar = {
       nombre:   `Del Login ${ts}`,
       email:    `dellog_${ts}@example.com`,
-      password: 'Eliminar2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await request.post(`${API_BASE}/auth/register`, { data: paraEliminar });

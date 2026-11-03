@@ -7,17 +7,16 @@ Flujo:
   2. Lo redirigimos al consent de Google con un `state` aleatorio guardado en cookie.
   3. Google redirige a GET /auth/google/callback?code=...&state=...
   4. Validamos state, intercambiamos code → token → userinfo, creamos/buscamos
-     usuario, emitimos JWT y redirigimos al frontend con `?token=...&rol=...`.
+     usuario, emitimos JWT, lo dejamos en las cookies de sesión (httpOnly + CSRF) y
+     redirigimos al frontend SIN token en la URL.
 
-El frontend (index.html) lee `?token=` del query, lo guarda en
-`sessionStorage` y redirige según rol.
+El frontend consulta /auth/me para saber el rol y a dónde ir.
 """
-from urllib.parse import urlencode
-
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
 from ..services import google_service
+from ..utils import sesion
 from ..utils.responses import error
 
 router = APIRouter(tags=["auth-google"])
@@ -32,7 +31,7 @@ async def google_login():
     response = RedirectResponse(url=url, status_code=302)
     response.set_cookie(
         _STATE_COOKIE, state,
-        max_age=600, httponly=True, samesite="lax",
+        max_age=600, path="/", httponly=True, secure=sesion.cookie_secure(), samesite="lax",
     )
     return response
 
@@ -40,7 +39,7 @@ async def google_login():
 @router.get("/auth/google/callback")
 async def google_callback(request: Request, code: str = "", state: str = "",
                           error_param: str | None = None):
-    """Procesa el callback de Google y redirige al frontend con el JWT."""
+    """Procesa el callback de Google, deja la sesión en cookies y redirige al frontend."""
     qp = request.query_params
     google_error = qp.get("error") or error_param
     if google_error:
@@ -49,13 +48,13 @@ async def google_callback(request: Request, code: str = "", state: str = "",
         raise error("Falta el código de autorización de Google", 400)
 
     expected_state = request.cookies.get(_STATE_COOKIE)
-    jwt_token, user = await google_service.handle_callback(
+    jwt_token, _user = await google_service.handle_callback(
         code=code, expected_state=expected_state, received_state=state,
     )
 
     target = google_service.post_login_redirect()
-    qs = urlencode({"token": jwt_token, "rol": user["rol"]})
-    sep = "&" if "?" in target else "?"
-    redirect = RedirectResponse(url=f"{target}{sep}{qs}", status_code=302)
-    redirect.delete_cookie(_STATE_COOKIE)
+    redirect = RedirectResponse(url=target, status_code=302)
+    sesion.set_session_cookies(redirect, jwt_token)
+    redirect.delete_cookie(_STATE_COOKIE, path="/", httponly=True,
+                           secure=sesion.cookie_secure(), samesite="lax")
     return redirect

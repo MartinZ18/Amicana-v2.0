@@ -29,7 +29,7 @@ Inventario de servicios externos integrados, con referencias de configuración.
 | `GOOGLE_CLIENT_ID` | Client ID de la app OAuth |
 | `GOOGLE_CLIENT_SECRET` | Client Secret de la app OAuth |
 | `GOOGLE_REDIRECT_URI` | URI de callback registrada en Google Console. Ej: `https://<dominio>/auth/google/callback` |
-| `GOOGLE_POST_LOGIN_REDIRECT` | Página del frontend a la que redirigir con `?token=...` tras login exitoso |
+| `GOOGLE_POST_LOGIN_REDIRECT` | Página del frontend a la que redirigir tras login exitoso. La sesión queda en la cookie httpOnly; la URL no lleva token |
 
 **Obtener credenciales:** [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)  
 **URI a registrar en Google Console:** `https://<tu-dominio>/auth/google/callback`

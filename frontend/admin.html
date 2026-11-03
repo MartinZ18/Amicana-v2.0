@@ -1193,9 +1193,10 @@
     </div>
 </div>
 
+<script src="sesion.js"></script>
 <script>
 // ===============================================================
-//  STATE & TOKEN
+//  STATE
 // ===============================================================
 
 let miRol = '';
@@ -1219,59 +1220,36 @@ const TIPO_EVENTO_LABEL = {
 
 function badgeModalidad(m) {
     if (!m) return '<span class="badge">—</span>';
-    return `<span class="badge badge-mod-${m}">${MODALIDAD_LABEL[m] || m}</span>`;
+    return `<span class="badge badge-mod-${escapeHtml(m)}">${escapeHtml(MODALIDAD_LABEL[m] || m)}</span>`;
 }
 function badgeCategoria(c) {
     if (!c) return '<span class="badge">—</span>';
-    return `<span class="badge badge-cat-${c}">${CATEGORIA_LABEL[c] || c}</span>`;
+    return `<span class="badge badge-cat-${escapeHtml(c)}">${escapeHtml(CATEGORIA_LABEL[c] || c)}</span>`;
 }
 function badgeTipoEvento(t) {
     if (!t) return '<span class="badge">—</span>';
-    return `<span class="badge badge-evt-${t}">${TIPO_EVENTO_LABEL[t] || t}</span>`;
+    return `<span class="badge badge-evt-${escapeHtml(t)}">${escapeHtml(TIPO_EVENTO_LABEL[t] || t)}</span>`;
 }
 
-const TOKEN_KEY = 'token';
-function readToken() {
-    let t = sessionStorage.getItem(TOKEN_KEY);
-    if (!t) {
-        const legacy = localStorage.getItem(TOKEN_KEY);
-        if (legacy) {
-            sessionStorage.setItem(TOKEN_KEY, legacy);
-            localStorage.removeItem(TOKEN_KEY);
-            t = legacy;
-        }
+window.addEventListener('load', async () => {
+    const s = await obtenerSesion();
+    if (!s) { window.location.href = 'index.html'; return; }
+    miRol = s.rol;
+    if (miRol !== 'admin' && miRol !== 'administrativo') {
+        window.location.href = 'index.html'; return;
     }
-    return t;
-}
-function clearToken() {
-    sessionStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-}
-
-window.addEventListener('load', () => {
-    const token = readToken();
-    if (!token) { window.location.href = 'index.html'; return; }
-    try {
-        const p = JSON.parse(atob(token.split('.')[1]));
-        if (p.exp * 1000 < Date.now()) { logout(); return; }
-        miRol = p.rol;
-        if (miRol !== 'admin' && miRol !== 'administrativo') {
-            window.location.href = 'index.html'; return;
-        }
-        document.getElementById('userName').textContent = p.sub;
-        document.getElementById('userRole').textContent = miRol;
-        document.getElementById('userAvatar').textContent = p.sub.charAt(0).toUpperCase();
-        document.getElementById('cfgEmail').textContent = p.sub;
-        document.getElementById('cfgRol').textContent = miRol;
-        cargarAlumnos();
-        cargarCursos();
-        cargarReportes();
-    } catch { logout(); }
+    document.getElementById('userName').textContent = s.email;
+    document.getElementById('userRole').textContent = miRol;
+    document.getElementById('userAvatar').textContent = s.email.charAt(0).toUpperCase();
+    document.getElementById('cfgEmail').textContent = s.email;
+    document.getElementById('cfgRol').textContent = miRol;
+    cargarAlumnos();
+    cargarCursos();
+    cargarReportes();
 });
 
 function logout() {
-    clearToken();
-    window.location.href = 'index.html';
+    cerrarSesion();
 }
 
 // ===============================================================
@@ -1294,15 +1272,11 @@ function toggleSidebar() {
 // ===============================================================
 
 async function api(url, opts = {}) {
-    const token = readToken();
     if (!opts.headers) opts.headers = {};
     if (!(opts.body instanceof FormData)) {
         opts.headers['Content-Type'] = 'application/json';
     }
-    opts.headers['Authorization'] = 'Bearer ' + token;
-    const res = await fetch(url, opts);
-    if (res.status === 401) logout();
-    return res;
+    return apiFetch(url, opts);
 }
 
 function badge(estado) {
@@ -1313,7 +1287,7 @@ function badge(estado) {
         pendiente_verificacion: 'badge-verificacion'
     };
     const cls = map[estado?.toLowerCase()] || 'badge-pendiente';
-    return `<span class="badge ${cls}">${estado || '—'}</span>`;
+    return `<span class="badge ${cls}">${escapeHtml(estado || '—')}</span>`;
 }
 
 function alert_(text, type = 'error') {
@@ -1357,7 +1331,7 @@ async function cargarCursos() {
         const d = await r.json();
         if (!r.ok) {
             document.getElementById('tablaCursos').innerHTML =
-                `<tr><td colspan="7" class="table-empty">${d.detail || 'Error'}</td></tr>`;
+                `<tr><td colspan="7" class="table-empty">${escapeHtml(d.detail || 'Error')}</td></tr>`;
             return;
         }
         cursosCache = d.cursos || [];
@@ -1367,7 +1341,7 @@ async function cargarCursos() {
         renderFiltrosAlumnosCurso();
     } catch (e) {
         document.getElementById('tablaCursos').innerHTML =
-            `<tr><td colspan="7" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="7" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -1387,8 +1361,8 @@ function renderCursos(lista) {
             <td>${badge(c.activo ? 'activo' : 'inactivo')}</td>
             <td>
                 <div class="flex" style="gap:6px;">
-                    <button class="btn btn-secondary btn-sm" onclick="editarCurso(${c.id})">Editar</button>
-                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarCurso(${c.id}, ${JSON.stringify(c.nombre)})">Eliminar</button>
+                    <button class="btn btn-secondary btn-sm" onclick="editarCurso(${Number(c.id)})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarCurso(${Number(c.id)}, ${escapeHtml(JSON.stringify(c.nombre))})">Eliminar</button>
                 </div>
             </td>
         </tr>
@@ -1437,7 +1411,7 @@ function poblarSelectCursos() {
             ? 'Seleccionar curso...' : 'Sin selección';
         el.innerHTML = `<option value="">${labelDefault}</option>` +
             cursosCache.filter(c => c.activo).map(c =>
-                `<option value="${c.id}" data-monto="${c.monto_cuota}">${escapeHtml(c.nombre)} — $${parseFloat(c.monto_cuota).toFixed(2)}</option>`
+                `<option value="${Number(c.id)}" data-monto="${escapeHtml(c.monto_cuota)}">${escapeHtml(c.nombre)} — $${parseFloat(c.monto_cuota).toFixed(2)}</option>`
             ).join('');
         if (prev) el.value = prev;
     });
@@ -1531,7 +1505,7 @@ async function cargarAlumnos() {
         const d = await r.json();
         if (!r.ok) {
             document.getElementById('tablaAlumnos').innerHTML =
-                `<tr><td colspan="8" class="table-empty">${d.detail || 'Error'}</td></tr>`;
+                `<tr><td colspan="8" class="table-empty">${escapeHtml(d.detail || 'Error')}</td></tr>`;
             return;
         }
         alumnosCache = d.alumnos || [];
@@ -1542,7 +1516,7 @@ async function cargarAlumnos() {
         poblarSelectAlumnos();
     } catch (e) {
         document.getElementById('tablaAlumnos').innerHTML =
-            `<tr><td colspan="8" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="8" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -1629,8 +1603,8 @@ function renderAlumnos(lista) {
             <td>${badgeModalidad(mod)}${heredada ? ' <small style="color:#94a3b8;">(curso)</small>' : ''}</td>
             <td>
                 <div class="flex" style="gap:6px;">
-                    <button class="btn btn-secondary btn-sm" onclick="editarAlumno(${a.id})">Editar</button>
-                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarAlumno(${a.id}, ${JSON.stringify(nombreCompleto(a))})">Eliminar</button>
+                    <button class="btn btn-secondary btn-sm" onclick="editarAlumno(${Number(a.id)})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarAlumno(${Number(a.id)}, ${escapeHtml(JSON.stringify(nombreCompleto(a)))})">Eliminar</button>
                 </div>
             </td>
         </tr>`;
@@ -1701,7 +1675,7 @@ function renderFiltrosAlumnosCurso() {
     const opts = [{ id: '', nombre: 'Todos' }, ...cursos];
     el.innerHTML = opts.map(c => {
         const active = String(filtroAlumnos.curso_id) === String(c.id) ? 'active' : '';
-        return `<button class="filter-btn ${active}" onclick="setFiltroAlumno('curso_id', '${c.id}')">${escapeHtml(c.nombre)}</button>`;
+        return `<button class="filter-btn ${active}" onclick="setFiltroAlumno('curso_id', '${c.id === '' ? '' : Number(c.id)}')">${escapeHtml(c.nombre)}</button>`;
     }).join('');
 }
 
@@ -1746,7 +1720,7 @@ function poblarSelectAlumnos() {
         const prev = el.value;
         el.innerHTML = '<option value="">Seleccionar alumno...</option>' +
             alumnosCache.map(a =>
-                `<option value="${a.id}">${escapeHtml(nombreCompleto(a))} — ${escapeHtml(a.email)}</option>`
+                `<option value="${Number(a.id)}">${escapeHtml(nombreCompleto(a))} — ${escapeHtml(a.email)}</option>`
             ).join('');
         if (prev) el.value = prev;
     });
@@ -1886,16 +1860,16 @@ async function cargarCalendario() {
         tbody.innerHTML = clases.map(c => `
             <tr>
                 <td>${escapeHtml(c.fecha)}</td>
-                <td>${recortar(c.hora_inicio)} – ${recortar(c.hora_fin)}</td>
+                <td>${escapeHtml(recortar(c.hora_inicio))} – ${escapeHtml(recortar(c.hora_fin))}</td>
                 <td>${escapeHtml(c.curso || '—')}</td>
                 <td><strong>${escapeHtml(c.titulo)}</strong>${c.descripcion ? `<br><small style="color:#718096;">${escapeHtml(c.descripcion)}</small>` : ''}</td>
                 <td>
-                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarClase(${c.id}, ${JSON.stringify(c.titulo)})">Eliminar</button>
+                    <button class="btn btn-danger btn-sm" onclick="confirmarEliminarClase(${Number(c.id)}, ${escapeHtml(JSON.stringify(c.titulo))})">Eliminar</button>
                 </td>
             </tr>`).join('');
     } catch (e) {
         document.getElementById('tablaCalendario').innerHTML =
-            `<tr><td colspan="5" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="5" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -1989,14 +1963,14 @@ async function cargarAvisosAdmin() {
                 <td><small>${escapeHtml(a.fecha_publicacion || '—')}</small></td>
                 <td>
                     <div class="flex" style="gap:6px;">
-                        <button class="btn btn-secondary btn-sm" onclick="editarAviso(${a.id})">Editar</button>
-                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminarAviso(${a.id}, ${JSON.stringify(a.titulo)})">Eliminar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="editarAviso(${Number(a.id)})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminarAviso(${Number(a.id)}, ${escapeHtml(JSON.stringify(a.titulo))})">Eliminar</button>
                     </div>
                 </td>
             </tr>`).join('');
     } catch (e) {
         document.getElementById('tablaAvisos').innerHTML =
-            `<tr><td colspan="6" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="6" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -2107,13 +2081,13 @@ async function cargarComunicados() {
                 <td>${escapeHtml(c.creado_por_nombre || '—')}</td>
                 <td>
                     ${miRol === 'admin'
-                        ? `<button class="btn btn-danger btn-sm" onclick="confirmarEliminarComunicado(${c.id}, ${JSON.stringify(c.asunto)})">Eliminar</button>`
+                        ? `<button class="btn btn-danger btn-sm" onclick="confirmarEliminarComunicado(${Number(c.id)}, ${escapeHtml(JSON.stringify(c.asunto))})">Eliminar</button>`
                         : ''}
                 </td>
             </tr>`).join('');
     } catch (e) {
         document.getElementById('tablaComunicados').innerHTML =
-            `<tr><td colspan="5" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="5" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -2312,10 +2286,14 @@ async function crearPagoMP() {
         });
         const d = await r.json();
         if (r.ok) {
-            resultado.innerHTML = `
+            if (typeof d.init_point === 'string' && d.init_point.startsWith('https://')) {
+                resultado.innerHTML = `
                 <div class="reporte" style="margin-top:12px;">
-                    <a href="${d.init_point}" target="_blank" class="btn-mp">Abrir MercadoPago</a>
+                    <a href="${escapeHtml(d.init_point)}" target="_blank" rel="noopener noreferrer" class="btn-mp">Abrir MercadoPago</a>
                 </div>`;
+            } else {
+                resultado.innerHTML = alert_('El link de pago recibido no es válido');
+            }
             cargarPagos();
         } else { resultado.innerHTML = alert_(d.detail || 'Error'); }
     } catch (e) { resultado.innerHTML = alert_('Error: ' + e.message); }
@@ -2330,7 +2308,7 @@ async function cargarPagos() {
             tbody.innerHTML = d.pagos.map(p => `
                 <tr>
                     <td>${escapeHtml(p.concepto)}</td>
-                    <td><strong>$${p.monto}</strong></td>
+                    <td><strong>$${escapeHtml(p.monto)}</strong></td>
                     <td>${badge(p.estado)}</td>
                     <td><span style="font-size:12px;color:var(--gray-400);">${escapeHtml(p.fecha_creacion || '')}</span></td>
                 </tr>`).join('');
@@ -2339,7 +2317,7 @@ async function cargarPagos() {
         }
     } catch (e) {
         document.getElementById('listaPagos').innerHTML =
-            `<tr><td colspan="4" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="4" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -2353,11 +2331,11 @@ async function cargarPendientesVerificacion() {
                 <tr>
                     <td><strong>${escapeHtml(c.alumno_nombre)}</strong><br><small style="color:#718096;">${escapeHtml(c.alumno_email)}</small></td>
                     <td>${escapeHtml(c.concepto)}</td>
-                    <td><strong>$${c.monto}</strong></td>
+                    <td><strong>$${escapeHtml(c.monto)}</strong></td>
                     <td style="font-size:12px;">${escapeHtml(c.comprobante_manual || '—')}</td>
                     <td><small>${escapeHtml(c.fecha_vencimiento)}</small></td>
                     <td>
-                        <button class="btn btn-primary btn-sm" onclick="aprobarPagoManual(${c.id})">Aprobar</button>
+                        <button class="btn btn-primary btn-sm" onclick="aprobarPagoManual(${Number(c.id)})">Aprobar</button>
                     </td>
                 </tr>`).join('');
         } else {
@@ -2365,7 +2343,7 @@ async function cargarPendientesVerificacion() {
         }
     } catch (e) {
         document.getElementById('listaPendientesVerif').innerHTML =
-            `<tr><td colspan="6" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="6" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -2413,9 +2391,9 @@ async function buscarAlumno() {
                     <div><small>Alta</small><strong>${escapeHtml((a.creado_en || '—').slice(0, 10))}</strong></div>
                 </div>
                 <div class="ficha-cuotas">
-                    <div class="chip"><strong>${a.cuotas.pagadas}</strong> pagadas</div>
-                    <div class="chip"><strong>${a.cuotas.pendientes}</strong> pendientes</div>
-                    <div class="chip"><strong>${a.cuotas.vencidas}</strong> vencidas</div>
+                    <div class="chip"><strong>${Number(a.cuotas.pagadas)}</strong> pagadas</div>
+                    <div class="chip"><strong>${Number(a.cuotas.pendientes)}</strong> pendientes</div>
+                    <div class="chip"><strong>${Number(a.cuotas.vencidas)}</strong> vencidas</div>
                     <div class="chip">Deuda: <strong>$${a.cuotas.deuda.toFixed(2)}</strong></div>
                 </div>
             </div>`).join('');
@@ -2442,15 +2420,15 @@ async function cargarReportes() {
         const cards = `
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px;">
                 <div class="stat-card-simple">
-                    <div class="num">${data.alumnos_totales}</div>
+                    <div class="num">${escapeHtml(data.alumnos_totales)}</div>
                     <div class="label">Alumnos activos</div>
                 </div>
                 <div class="stat-card-simple danger">
-                    <div class="num">${data.alumnos_con_deuda}</div>
+                    <div class="num">${escapeHtml(data.alumnos_con_deuda)}</div>
                     <div class="label">Alumnos con deuda</div>
                 </div>
                 <div class="stat-card-simple warn">
-                    <div class="num">${data.cuotas_vencidas.cantidad}</div>
+                    <div class="num">${escapeHtml(data.cuotas_vencidas.cantidad)}</div>
                     <div class="label">Cuotas vencidas ($${data.cuotas_vencidas.monto.toFixed(2)})</div>
                 </div>
             </div>`;
@@ -2464,7 +2442,7 @@ async function cargarReportes() {
                         <thead><tr><th>Curso</th><th>Alumnos</th></tr></thead>
                         <tbody>
                         ${porCurso.length
-                            ? porCurso.map(c => `<tr><td>${escapeHtml(c.nombre)}</td><td><strong>${c.alumnos}</strong></td></tr>`).join('')
+                            ? porCurso.map(c => `<tr><td>${escapeHtml(c.nombre)}</td><td><strong>${escapeHtml(c.alumnos)}</strong></td></tr>`).join('')
                             : '<tr><td colspan="2" class="table-empty">Sin cursos activos</td></tr>'}
                         </tbody>
                     </table>
@@ -2527,7 +2505,7 @@ async function cargarEventos() {
         const d = await r.json();
         if (!r.ok) {
             document.getElementById('tablaEventos').innerHTML =
-                `<tr><td colspan="5" class="table-empty">${formatErrorDetail(d.detail) || 'Error'}</td></tr>`;
+                `<tr><td colspan="5" class="table-empty">${escapeHtml(formatErrorDetail(d.detail) || 'Error')}</td></tr>`;
             return;
         }
         const data = d.data || d;
@@ -2535,7 +2513,7 @@ async function cargarEventos() {
         renderEventos(eventosCache);
     } catch (e) {
         document.getElementById('tablaEventos').innerHTML =
-            `<tr><td colspan="5" class="table-empty">Error: ${e.message}</td></tr>`;
+            `<tr><td colspan="5" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -2552,7 +2530,7 @@ function renderEventos(lista) {
             : ev.fecha_inicio;
         const hora = ev.todo_el_dia
             ? '<small style="color:#94a3b8;">Todo el día</small>'
-            : (ev.hora_inicio ? `${recortar(ev.hora_inicio)} – ${recortar(ev.hora_fin || '')}` : '—');
+            : (ev.hora_inicio ? `${escapeHtml(recortar(ev.hora_inicio))} – ${escapeHtml(recortar(ev.hora_fin || ''))}` : '—');
         return `
             <tr>
                 <td>${escapeHtml(fecha)}<br><small style="color:#64748b;">${hora}</small></td>
@@ -2561,8 +2539,8 @@ function renderEventos(lista) {
                 <td>${ev.visible_alumno ? 'Sí' : '<small style="color:#94a3b8;">Solo staff</small>'}</td>
                 <td>
                     <div class="flex" style="gap:6px;">
-                        <button class="btn btn-secondary btn-sm" onclick="editarEvento(${ev.id})">Editar</button>
-                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminarEvento(${ev.id}, ${JSON.stringify(ev.titulo)})">Eliminar</button>
+                        <button class="btn btn-secondary btn-sm" onclick="editarEvento(${Number(ev.id)})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmarEliminarEvento(${Number(ev.id)}, ${escapeHtml(JSON.stringify(ev.titulo))})">Eliminar</button>
                     </div>
                 </td>
             </tr>`;
@@ -2721,7 +2699,7 @@ async function cargarDeudores() {
         const r = await api(`/reportes/deudores?estado=${encodeURIComponent(estado)}`);
         const d = await r.json();
         if (!r.ok) {
-            tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${formatErrorDetail(d.detail) || 'Error'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${escapeHtml(formatErrorDetail(d.detail) || 'Error')}</td></tr>`;
             return;
         }
         const data = d.data || d;
@@ -2736,12 +2714,12 @@ async function cargarDeudores() {
                     <br><small style="color:#64748b;">${escapeHtml(x.email)}</small></td>
                 <td>${escapeHtml(x.dni || '—')}</td>
                 <td>${escapeHtml(x.curso || '—')}</td>
-                <td>${x.cuotas_adeudadas}</td>
+                <td>${escapeHtml(x.cuotas_adeudadas)}</td>
                 <td><strong>$${parseFloat(x.deuda_total||0).toFixed(2)}</strong></td>
-                <td><button class="btn btn-secondary btn-sm" onclick="irABuscarAlumno(${x.id})">Ver ficha</button></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="irABuscarAlumno(${Number(x.id)})">Ver ficha</button></td>
             </tr>`).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Error: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -2752,7 +2730,7 @@ async function cargarCuotasVencidas() {
         const r = await api('/reportes/cuotas-vencidas');
         const d = await r.json();
         if (!r.ok) {
-            tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${formatErrorDetail(d.detail) || 'Error'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${escapeHtml(formatErrorDetail(d.detail) || 'Error')}</td></tr>`;
             return;
         }
         const data = d.data || d;
@@ -2764,16 +2742,16 @@ async function cargarCuotasVencidas() {
         tbody.innerHTML = lista.map(c => `
             <tr>
                 <td>${escapeHtml(c.fecha_vencimiento)}</td>
-                <td><span style="color:#dc2626;font-weight:600;">${c.dias_vencida} d</span></td>
+                <td><span style="color:#dc2626;font-weight:600;">${escapeHtml(c.dias_vencida)} d</span></td>
                 <td><strong>${escapeHtml([c.apellido, c.nombre].filter(Boolean).join(', ') || c.nombre)}</strong>
                     <br><small style="color:#64748b;">DNI ${escapeHtml(c.dni || '—')}</small></td>
                 <td>${escapeHtml(c.curso || '—')}</td>
                 <td>${escapeHtml(c.concepto)}</td>
                 <td><strong>$${parseFloat(c.monto||0).toFixed(2)}</strong></td>
-                <td><button class="btn btn-secondary btn-sm" onclick="irABuscarAlumno(${c.alumno_id})">Ver ficha</button></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="irABuscarAlumno(${Number(c.alumno_id)})">Ver ficha</button></td>
             </tr>`).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 

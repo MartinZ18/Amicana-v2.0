@@ -1,5 +1,8 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { claveDePrueba } from '../helpers/claves.js';
+
+const CLAVE = claveDePrueba();
 
 /**
  * Actividad 2 — Spec 3: Pruebas Híbridas (API Setup + UI Verify)
@@ -22,7 +25,7 @@ async function crearUsuarioViaAPI(request, overrides = {}) {
   const datos = {
     nombre:   `PW Hibrido ${ts}`,
     email:    `pw_hibrido_${ts}@example.com`,
-    password: 'Hibrido2024!',
+    password: CLAVE,
     rol:      'alumno',
     ...overrides,
   };
@@ -50,8 +53,9 @@ test.describe('Híbrida: API Setup + UI Verify @hibrida @e2e', () => {
 
     // PASO 3: verificar redirección exitosa al panel
     await expect(page).toHaveURL(/alumno\.html/, { timeout: 8000 });
-    const token = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(token).toBeTruthy();
+    const cookies = await page.context().cookies();
+    expect(cookies.find(c => c.name === 'amicana_session')?.httpOnly).toBe(true);
+    expect(await page.evaluate(() => sessionStorage.getItem('token'))).toBeNull();
   });
 
   // TC-HYB-02: Usuario real → falla con contraseña incorrecta en UI
@@ -71,13 +75,13 @@ test.describe('Híbrida: API Setup + UI Verify @hibrida @e2e', () => {
   });
 
   // TC-HYB-03: Datos creados por API coinciden con lo visible en la UI
-  test('TC-HYB-03: email del alumno creado por API está en el JWT almacenado en UI', async ({ page, request }) => {
+  test('TC-HYB-03: email del alumno creado por API es el de la sesión activa en UI', async ({ page, request }) => {
     // PASO 1: crear usuario con datos conocidos
     const ts = Date.now();
     const datos = {
       nombre:   `Carlos ${ts}`,
       email:    `carlos_v_${ts}@example.com`,
-      password: 'Verificado2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     await request.post(`${API_BASE}/auth/register`, { data: datos });
@@ -89,14 +93,10 @@ test.describe('Híbrida: API Setup + UI Verify @hibrida @e2e', () => {
     await page.locator('[data-testid="login-submit"]').click();
     await page.waitForURL(/alumno/, { timeout: 8000 });
 
-    // PASO 3: verificar que el JWT pertenece al usuario creado
-    const payload = await page.evaluate((t) => {
-      const raw = sessionStorage.getItem('token');
-      if (!raw) return null;
-      const p = raw.split('.')[1];
-      return JSON.parse(atob(p + '='.repeat((4 - p.length % 4) % 4)));
-    }, null);
-    expect(payload.sub).toBe(datos.email);
+    // PASO 3: verificar que la sesión (cookie httpOnly, vía /auth/me) pertenece al usuario creado
+    const sesion = await page.evaluate(async () => (await fetch('/auth/me')).json());
+    expect(sesion.email).toBe(datos.email);
+    expect(sesion.nombre).toBe(datos.nombre);
   });
 
   // TC-HYB-04: Backend sano → crear usuario via API → login en UI funciona
@@ -110,7 +110,7 @@ test.describe('Híbrida: API Setup + UI Verify @hibrida @e2e', () => {
     const usuario = {
       nombre:   `HYB04 ${ts}`,
       email:    `hyb04_${ts}@example.com`,
-      password: 'Hibrido2024!',
+      password: CLAVE,
       rol:      'alumno',
     };
     const crearRes = await request.post(`${API_BASE}/auth/register`, { data: usuario });

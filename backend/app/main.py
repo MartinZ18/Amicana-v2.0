@@ -14,8 +14,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .auth import hash_password
+from .auth import hash_password, jwt_de_sesion_valida
 from .database import get_connection
+from .utils import sesion
 from .utils.rate_limit import SlidingWindowLimiter, client_ip
 from .utils.responses import error
 
@@ -91,21 +92,39 @@ app = FastAPI(title="AMICANA 2.0", lifespan=lifespan)
 # CORS: lista de orígenes permitidos, configurable vía env CORS_ORIGINS
 # (CSV: "http://localhost:5173,https://app.amicana.com"). En desarrollo
 # default permisivo de localhost; en producción definir explícitamente.
-_cors_env = os.environ.get("CORS_ORIGINS", "")
-if _cors_env.strip() == "*":
-    cors_origins = ["*"]
-elif _cors_env.strip():
-    cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
-else:
-    cors_origins = [
-        "http://localhost",
-        "http://localhost:8000",
-        "http://localhost:5173",
-        "http://127.0.0.1:8000",
-        "http://127.0.0.1:5173",
-        "https://AmicanaProfesional.com",
-        "https://AmicanaProfesional.com:8000",
-    ]
+# Con credenciales (cookie de sesión) un "*" no es válido: se descarta.
+_CORS_POR_DEFECTO = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:5173",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:5173",
+    "https://AmicanaProfesional.com",
+    "https://AmicanaProfesional.com:8000",
+]
+def _normalizar_origen(o: str) -> str:
+    return o.strip().rstrip("/").lower()
+
+
+# Normalizados (los navegadores mandan el Origin en minúsculas y sin "/") para que CORS y el
+# chequeo de Origin coincidan.
+cors_origins = [_normalizar_origen(o) for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if "*" in cors_origins:
+    logger.warning("CORS_ORIGINS contiene '*': se ignora porque la sesión usa cookies con "
+                   "credenciales. Listá los orígenes explícitamente.")
+    cors_origins = [o for o in cors_origins if o != "*"]
+if not cors_origins:
+    cors_origins = [_normalizar_origen(o) for o in _CORS_POR_DEFECTO]
+
+
+@app.middleware("http")
+async def chequeo_de_origin(request: Request, call_next):
+    """En métodos inseguros, un Origin ajeno (ni el propio host ni CORS_ORIGINS) da 403.
+    Cubre también el login (login CSRF). Sin Origin (n8n, MP, API) pasa."""
+    if request.method not in sesion.METODOS_SEGUROS and not sesion.origen_permitido(request, cors_origins):
+        return JSONResponse(status_code=403, content={"ok": False, "mensaje": "Origen no permitido"})
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -189,6 +208,9 @@ async def chatbot_proxy(request: Request):
     Cualquier error de red o respuesta vacía cae al fallback amigable y queda
     registrado con `logger.exception` para debug — el usuario ve un mensaje
     genérico, los operadores ven el traceback completo en logs.
+
+    Con una cookie de sesión válida el chat es de ese usuario: exige el CSRF firmado y reenvía
+    el JWT a n8n como `user_token`. Sin cookie, o con una inválida, el chat es anónimo.
     """
     import requests as req_lib
 
@@ -198,13 +220,24 @@ async def chatbot_proxy(request: Request):
         "pdf_url": None,
     }
 
+    session_jwt = jwt_de_sesion_valida(request)
+    if session_jwt:
+        # Autenticado por cookie: mismo CSRF firmado que el resto de los métodos inseguros.
+        sesion.exigir_csrf(request, session_jwt)
+
     try:
         body = await request.json()
     except Exception:
         logger.warning("[chatbot proxy] body inválido o no-JSON desde el widget")
         return _fallback
 
-    session_id = (body or {}).get("session_id", "<sin-session>")
+    # La identidad del chat sale solo de la cookie de sesión (nunca del body ni de headers que
+    # mande el cliente): se saca cualquier user_token que venga en el body.
+    if not isinstance(body, dict):
+        logger.warning("[chatbot proxy] body JSON que no es un objeto desde el widget")
+        return _fallback
+    body = {k: v for k, v in body.items() if k != "user_token"}
+    session_id = body.get("session_id", "<sin-session>")
 
     if _chatbot_limiter.hit(client_ip(request)):
         logger.warning("[chatbot proxy] rate limit excedido ip=%s session=%s",
@@ -215,10 +248,8 @@ async def chatbot_proxy(request: Request):
             "qr_url": None, "pdf_url": None,
         })
 
-    # Forward X-User-Token si el widget lo envía (pre-auth)
-    user_token = request.headers.get("X-User-Token")
-    if user_token and body:
-        body = {**body, "user_token": user_token}
+    if session_jwt and body:
+        body = {**body, "user_token": session_jwt}
 
     n8n_url = os.environ.get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/amicana-chatbot")
     timeout_s = float(os.environ.get("N8N_TIMEOUT_SECONDS", "30"))

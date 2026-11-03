@@ -28,6 +28,45 @@ function makeToken(sub, rol, id) {
   return `${header}.${pay}.fakesignature`;
 }
 
+/**
+ * La sesión real es una cookie httpOnly que setea el servidor. Con el login mockeado
+ * no hay cookie, así que el frontend (que pregunta a GET /auth/me quién es) recibe
+ * un usuario mockeado mientras la sesión esté "activa". Arranca inactiva (/auth/me da 401),
+ * se activa cuando un login responde OK y POST /auth/logout la apaga, como el backend real.
+ * Devuelve el estado para que un test pueda simular una sesión vencida (activa = false).
+ */
+async function mockSesion(page, email, rol, id) {
+  const estado = { activa: false };
+  page.on('response', r => {
+    if (/\/(auth\/)?login$/.test(new URL(r.url()).pathname) && r.ok()) estado.activa = true;
+  });
+  await page.route('**/auth/me', route =>
+    estado.activa
+      ? route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id, nombre: 'Test', email, rol, auth_provider: 'local' }),
+        })
+      : route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'No autenticado' }),
+        })
+  );
+  await page.route('**/auth/logout', route => {
+    estado.activa = false;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+  return estado;
+}
+
+/** Sin sesión: /auth/me responde 401, como el backend sin cookie válida. */
+async function mockSinSesion(page) {
+  await page.route('**/auth/me', route =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'No autenticado' }) })
+  );
+}
+
 async function blockUnmatchedApi(page) {
   await page.route('**/*', route => {
     const url = route.request().url();
@@ -39,6 +78,7 @@ async function blockUnmatchedApi(page) {
 
 async function mockLoginExitoso(page, token = makeToken('alumno@test.com', 'alumno', 99)) {
   await blockUnmatchedApi(page);
+  const estado = await mockSesion(page, 'alumno@test.com', 'alumno', 99);
   await page.route(API_LOGIN, route =>
     route.fulfill({
       status: 200,
@@ -46,6 +86,7 @@ async function mockLoginExitoso(page, token = makeToken('alumno@test.com', 'alum
       body: JSON.stringify({ access_token: token, token_type: 'bearer' }),
     })
   );
+  return estado;
 }
 
 async function hacerLoginEnUI(page) {
@@ -207,14 +248,11 @@ test.describe('Mock: Lista de resultados sin backend real @mock', () => {
     await expect(lista).toContainText(/Enero/i, { timeout: 6000 });
 
     // Llamar al endpoint de pago directamente (simula lo que haría el botón Pagar)
-    const token = await page.evaluate(() => sessionStorage.getItem('token'));
-    const resultado = await page.evaluate(async (tok) => {
-      const res = await fetch('/pagar-cuota/1', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${tok}` },
-      });
+    // apiFetch es el helper de sesión de la página (cookie + X-CSRF-Token, sin Bearer)
+    const resultado = await page.evaluate(async () => {
+      const res = await apiFetch('/pagar-cuota/1', { method: 'POST' });
       return { status: res.status, body: await res.json() };
-    }, token);
+    });
 
     expect(resultado.status).toBe(200);
     expect(resultado.body.init_point).toBe(INIT_POINT);
@@ -270,15 +308,16 @@ test.describe('Mock: Estados vacíos @mock', () => {
 
 test.describe('Mock: Interceptar respuestas de error @mock', () => {
 
-  test('TC-MOCK-09: 401 en /mis-cuotas fuerza logout y redirige al login', async ({ page }) => {
-    await mockLoginExitoso(page);
-    await page.route(API_MIS_CUOTAS, route =>
-      route.fulfill({
+  test('TC-MOCK-09: 401 en /mis-cuotas (sesión vencida) redirige al login', async ({ page }) => {
+    const sesion = await mockLoginExitoso(page);
+    await page.route(API_MIS_CUOTAS, route => {
+      sesion.activa = false; // el servidor ya no reconoce la sesión
+      return route.fulfill({
         status: 401,
         contentType: 'application/json',
         body: JSON.stringify({ detail: 'No autenticado' }),
-      })
-    );
+      });
+    });
 
     await hacerLoginEnUI(page);
     await page.waitForURL(/alumno\.html/, { timeout: 8000 });
@@ -286,16 +325,20 @@ test.describe('Mock: Interceptar respuestas de error @mock', () => {
     await expect(page).toHaveURL(/index\.html/, { timeout: 8000 });
   });
 
-  test('TC-MOCK-10: token mockeado queda en sessionStorage con formato JWT correcto', async ({ page }) => {
-    const tokenEsperado = makeToken('alumno@test.com', 'alumno', 99);
+  test('TC-MOCK-10: el token del body de /login no se guarda en ningún storage', async ({ page }) => {
+    const tokenDelBody = makeToken('alumno@test.com', 'alumno', 99);
 
-    await mockLoginExitoso(page, tokenEsperado);
+    await mockLoginExitoso(page, tokenDelBody);
     await hacerLoginEnUI(page);
     await page.waitForURL(/alumno\.html/, { timeout: 8000 });
 
-    const tokenGuardado = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(tokenGuardado).toBe(tokenEsperado);
-    expect(tokenGuardado.split('.').length).toBe(3);
+    const guardados = await page.evaluate(() => [
+      ...Object.keys(localStorage), ...Object.values(localStorage),
+      ...Object.keys(sessionStorage), ...Object.values(sessionStorage),
+    ]);
+    expect(guardados.some(v => v === 'token' || v.includes(tokenDelBody))).toBe(false);
+    // El usuario sale de /auth/me: el nombre del panel es el email de esa respuesta
+    await expect(page.locator('#userName')).toHaveText('alumno@test.com');
   });
 
 });

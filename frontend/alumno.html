@@ -597,35 +597,8 @@
     </div>
 </div>
 
+<script src="sesion.js"></script>
 <script>
-// ===============================================================
-//  TOKEN STORAGE — sessionStorage canónico, fallback a localStorage
-// ===============================================================
-const TOKEN_KEY = 'token';
-
-function readToken() {
-    let t = sessionStorage.getItem(TOKEN_KEY);
-    if (!t) {
-        t = localStorage.getItem(TOKEN_KEY);
-        if (t) sessionStorage.setItem(TOKEN_KEY, t);
-    }
-    if (!t) {
-        const m = document.cookie.match(/(?:^|;\s*)amicana_restore=([^;]+)/);
-        if (m) {
-            t = decodeURIComponent(m[1]);
-            sessionStorage.setItem(TOKEN_KEY, t);
-            localStorage.setItem(TOKEN_KEY, t);
-            document.cookie = 'amicana_restore=; max-age=0; path=/';
-        }
-    }
-    return t;
-}
-function clearToken() {
-    sessionStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-    document.cookie = 'amicana_restore=; max-age=0; path=/';
-}
-
 // ===============================================================
 //  INIT
 // ===============================================================
@@ -633,7 +606,7 @@ function clearToken() {
 let cuotaSeleccionada = null;
 let usuarioActual = null;
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     // Si esta pestaña fue abierta por window.open() y volvió de MP, cerrarla
     const _params = new URLSearchParams(window.location.search);
     if (_params.get('pago') && window.opener) {
@@ -641,18 +614,14 @@ window.addEventListener('load', () => {
         return;
     }
 
-    const token = readToken();
-    if (!token) { window.location.href = 'index.html'; return; }
+    const p = await obtenerSesion();
+    if (!p || p.rol !== 'alumno') { window.location.href = 'index.html'; return; }
 
-    try {
-        const p = JSON.parse(atob(token.split('.')[1]));
-        if (p.exp * 1000 < Date.now()) { logout(); return; }
-        if (p.rol !== 'alumno') { window.location.href = 'index.html'; return; }
-
+    {
         usuarioActual = p;
-        document.getElementById('userName').textContent = p.sub;
-        document.getElementById('userAvatar').textContent = p.sub.charAt(0).toUpperCase();
-        document.getElementById('profileAvatar').textContent = p.sub.charAt(0).toUpperCase();
+        document.getElementById('userName').textContent = p.email;
+        document.getElementById('userAvatar').textContent = p.email.charAt(0).toUpperCase();
+        document.getElementById('profileAvatar').textContent = p.email.charAt(0).toUpperCase();
 
         const ahora = new Date();
         const hora = ahora.getHours();
@@ -682,7 +651,7 @@ window.addEventListener('load', () => {
             sessionStorage.removeItem('pending_cuota_id');
             localStorage.removeItem('pending_preference_id');
             localStorage.removeItem('pending_cuota_id');
-            mostrarSeccion('secCuotas');
+            showSection('secCuotas');
             if (pagoResult === 'exito' && prefId) {
                 api(`/verificar-pago/${prefId}`)
                     .then(r => r.json())
@@ -695,12 +664,11 @@ window.addEventListener('load', () => {
                 if (mpMsg) mpMsg.innerHTML = '<div class="alert alert-error" style="margin-top:12px;">El pago fue rechazado. Podés intentarlo de nuevo.</div>';
             }
         }
-    } catch { logout(); }
+    }
 });
 
 function logout() {
-    clearToken();
-    window.location.href = 'index.html';
+    cerrarSesion();
 }
 
 // ===============================================================
@@ -742,15 +710,11 @@ function toggleSidebar() {
 // ===============================================================
 
 async function api(url, opts = {}) {
-    const token = readToken();
     if (!opts.headers) opts.headers = {};
     if (!opts.headers['Content-Type'] && opts.method && opts.method !== 'GET') {
         opts.headers['Content-Type'] = 'application/json';
     }
-    opts.headers['Authorization'] = 'Bearer ' + token;
-    const res = await fetch(url, opts);
-    if (res.status === 401) logout();
-    return res;
+    return apiFetch(url, opts);
 }
 
 // ===============================================================
@@ -778,7 +742,7 @@ async function cargarPerfil(saludo) {
         if (p.telefono) meta.push(p.telefono);
         if (p.curso)    meta.push(p.curso);
         document.getElementById('profileMeta').innerHTML =
-            meta.map(item => `<span>${item}</span>`).join('<span style="margin:0 6px;color:#cbd5e0;">·</span>');
+            meta.map(item => `<span>${escapeHtml(item)}</span>`).join('<span style="margin:0 6px;color:#cbd5e0;">·</span>');
     } catch { /* perfil silencioso */ }
 }
 
@@ -799,9 +763,9 @@ async function cargarAvisos() {
         }
         cont.innerHTML = avisos.map(a => `
             <div class="aviso-card ${a.importante ? 'importante' : ''}">
-                <div class="aviso-titulo">${a.titulo}</div>
-                <div class="aviso-meta">${a.fecha_publicacion || ''} · ${a.creado_por_nombre || 'Administración'}</div>
-                <div class="aviso-cuerpo">${a.contenido}</div>
+                <div class="aviso-titulo">${escapeHtml(a.titulo)}</div>
+                <div class="aviso-meta">${escapeHtml(a.fecha_publicacion || '')} · ${escapeHtml(a.creado_por_nombre || 'Administración')}</div>
+                <div class="aviso-cuerpo">${escapeHtml(a.contenido)}</div>
             </div>`).join('');
     } catch {
         cont.innerHTML = '<p style="font-size:12px;color:#a0aec0;">Sin conexión.</p>';
@@ -824,7 +788,7 @@ async function cargarProximasClases() {
         const data = d.data || d;
         const clases = data.clases || [];
         if (data.mensaje) {
-            cont.innerHTML = `<p style="font-size:13px;color:#718096;">${data.mensaje}</p>`;
+            cont.innerHTML = `<p style="font-size:13px;color:#718096;">${escapeHtml(data.mensaje)}</p>`;
             return;
         }
         if (!clases.length) {
@@ -839,8 +803,8 @@ async function cargarProximasClases() {
         cont.innerHTML = clases.slice(0, 5).map(c => `
             <div class="clase-row">
                 <span class="dia">${fmtFecha(c.fecha)}</span>
-                <span class="hora">${recortar(c.hora_inicio)} – ${recortar(c.hora_fin)}</span>
-                <span class="aula">${c.titulo}</span>
+                <span class="hora">${escapeHtml(recortar(c.hora_inicio))} – ${escapeHtml(recortar(c.hora_fin))}</span>
+                <span class="aula">${escapeHtml(c.titulo)}</span>
             </div>`).join('');
     } catch {
         cont.innerHTML = '<p style="font-size:12px;color:#a0aec0;">No se pudieron cargar las clases.</p>';
@@ -860,11 +824,11 @@ async function cargarCuotasDashboard() {
         cont.innerHTML = `
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
                 <div class="progreso-item" style="background:#fef3c7;">
-                    <div class="progreso-num" style="color:#92400e;">${d.pendientes ?? 0}</div>
+                    <div class="progreso-num" style="color:#92400e;">${Number(d.pendientes ?? 0)}</div>
                     <div class="progreso-label">Pendientes</div>
                 </div>
                 <div class="progreso-item" style="background:#fee2e2;">
-                    <div class="progreso-num" style="color:#991b1b;">${d.vencidas ?? 0}</div>
+                    <div class="progreso-num" style="color:#991b1b;">${Number(d.vencidas ?? 0)}</div>
                     <div class="progreso-label">Vencidas</div>
                 </div>
             </div>
@@ -887,7 +851,7 @@ async function cargarMisCuotas() {
     try {
         const r = await api('/mis-cuotas');
         const d = await r.json();
-        if (!r.ok) { lista.innerHTML = `<div class="alert alert-error">${d.detail || 'Error'}</div>`; return; }
+        if (!r.ok) { lista.innerHTML = `<div class="alert alert-error">${escapeHtml(d.detail || 'Error')}</div>`; return; }
 
         document.getElementById('statPendientes').textContent = d.pendientes ?? 0;
         document.getElementById('statVencidas').textContent   = d.vencidas ?? 0;
@@ -904,25 +868,25 @@ async function cargarMisCuotas() {
         lista.innerHTML = sorted.map(c => {
             const isPagada = c.estado === 'pagada';
             return `
-            <div class="cuota-card ${c.estado}">
+            <div class="cuota-card ${escapeHtml(c.estado)}">
                 <div class="cuota-card-top">
-                    <div class="cuota-concepto">${c.concepto}</div>
-                    <span class="badge badge-${c.estado}">${c.estado.toUpperCase()}</span>
+                    <div class="cuota-concepto">${escapeHtml(c.concepto)}</div>
+                    <span class="badge badge-${escapeHtml(c.estado)}">${escapeHtml(String(c.estado).toUpperCase())}</span>
                 </div>
                 <div class="cuota-meta">
                     <span>$${parseFloat(c.monto).toFixed(2)}</span>
-                    <span>Vence: ${c.fecha_vencimiento}</span>
+                    <span>Vence: ${escapeHtml(c.fecha_vencimiento)}</span>
                 </div>
                 ${isPagada
                     ? `<p style="font-size:13px;font-weight:700;color:var(--success);">Abonada</p>`
                     : `<button class="btn btn-primary btn-sm" style="max-width:220px;"
-                              onclick="abrirPago(${c.id}, '${c.concepto.replace(/'/g,"\\'")}', ${c.monto})">
+                              onclick="abrirPago(${Number(c.id)}, ${escapeHtml(JSON.stringify(c.concepto))}, ${Number(c.monto)})">
                            Pagar esta cuota
                        </button>`}
             </div>`;
         }).join('');
     } catch (e) {
-        lista.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+        lista.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(e.message)}</div>`;
     }
 }
 
@@ -941,14 +905,14 @@ async function cargarHistorial() {
     try {
         const r = await api(`/pagos/historial${qs.toString() ? '?' + qs : ''}`);
         const d = await r.json();
-        if (!r.ok) { cont.innerHTML = `<div class="alert alert-error">${d.detail || 'Error'}</div>`; return; }
+        if (!r.ok) { cont.innerHTML = `<div class="alert alert-error">${escapeHtml(d.detail || 'Error')}</div>`; return; }
         if (!d.pagos?.length) {
             cont.innerHTML = '<p style="text-align:center;color:#a0aec0;">Sin pagos en el rango seleccionado.</p>';
             return;
         }
         cont.innerHTML = `
             <p style="font-size:13px;margin-bottom:8px;">
-                <strong>${d.total}</strong> pagos · Total: <strong>$${d.monto_total.toFixed(2)}</strong>
+                <strong>${escapeHtml(d.total)}</strong> pagos · Total: <strong>$${d.monto_total.toFixed(2)}</strong>
             </p>
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
@@ -961,14 +925,14 @@ async function cargarHistorial() {
                 <tbody>
                     ${d.pagos.map(p => `
                         <tr style="border-top:1px solid #edf2f7;">
-                            <td style="padding:8px;">${p.concepto}</td>
+                            <td style="padding:8px;">${escapeHtml(p.concepto)}</td>
                             <td style="padding:8px;text-align:right;">$${parseFloat(p.monto).toFixed(2)}</td>
-                            <td style="padding:8px;text-align:right;color:#718096;">${p.fecha_vencimiento}</td>
+                            <td style="padding:8px;text-align:right;color:#718096;">${escapeHtml(p.fecha_vencimiento)}</td>
                         </tr>`).join('')}
                 </tbody>
             </table>`;
     } catch (e) {
-        cont.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+        cont.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(e.message)}</div>`;
     }
 }
 
@@ -1063,12 +1027,12 @@ async function guardarPerfil(e) {
         });
         const d = await r.json();
         if (r.ok) {
-            msg.innerHTML = `<div class="alert alert-success">${d.mensaje || 'Perfil actualizado'}</div>`;
+            msg.innerHTML = `<div class="alert alert-success">${escapeHtml(d.mensaje || 'Perfil actualizado')}</div>`;
         } else {
-            msg.innerHTML = `<div class="alert alert-error">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error al guardar'}</div>`;
+            msg.innerHTML = `<div class="alert alert-error">${escapeHtml((d.detail && (d.detail.mensaje || d.detail)) || 'Error al guardar')}</div>`;
         }
     } catch (err) {
-        msg.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+        msg.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -1089,14 +1053,14 @@ function abrirChatbotParaPagar() {
 function showMsg(id, text, type) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = `<div class="alert alert-${type}" style="margin-top:8px;">${text}</div>`;
+    el.innerHTML = `<div class="alert alert-${type}" style="margin-top:8px;">${escapeHtml(text)}</div>`;
 }
 
 function abrirPago(id, concepto, monto) {
     cuotaSeleccionada = { id, concepto, monto };
     document.getElementById('modalPagarInfo').innerHTML = `
         <div class="reporte">
-            <p><strong>Cuota:</strong> ${concepto}</p>
+            <p><strong>Cuota:</strong> ${escapeHtml(concepto)}</p>
             <p><strong>Monto:</strong> <strong style="font-size:18px;color:var(--dark);">$${parseFloat(monto).toFixed(2)}</strong></p>
         </div>`;
     document.getElementById('modalPagarMsg').innerHTML = '';
@@ -1111,6 +1075,12 @@ async function pagarConMP() {
 
     // Abrir ventana ANTES del await para mantener el contexto de gesto de usuario
     const mpWindow = window.open('about:blank', '_blank');
+    if (!mpWindow) {
+        showMsg('modalPagarMsg', 'El navegador bloqueó la ventana de pago. Permití las ventanas emergentes para este sitio e intentá de nuevo.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Pagar con MercadoPago';
+        return;
+    }
 
     try {
         const r = await api(`/pagar-cuota/${cuotaSeleccionada.id}`, { method: 'POST' });
@@ -1120,11 +1090,11 @@ async function pagarConMP() {
             mpWindow.location.href = d.init_point;
             iniciarPollingPago(cuotaSeleccionada.id, cuotaSeleccionada.concepto);
         } else {
-            mpWindow.close();
+            if (mpWindow) mpWindow.close();
             showMsg('modalPagarMsg', d.detail || 'No se pudo generar el link de pago', 'error');
         }
     } catch (e) {
-        mpWindow.close();
+        if (mpWindow) mpWindow.close();
         showMsg('modalPagarMsg', 'Error: ' + e.message, 'error');
     }
     btn.disabled = false;
@@ -1157,7 +1127,7 @@ function iniciarPollingPago(cuotaId, concepto) {
                 cerrarPolling();
                 cargarMisCuotas();
                 cargarCuotasDashboard();
-                mostrarSeccion('secCuotas');
+                showSection('secCuotas');
                 const mpMsg = document.getElementById('mpLinkResult');
                 if (mpMsg) mpMsg.innerHTML = '<div class="alert alert-success" style="margin-top:12px;">¡Pago aprobado! Tu cuota fue actualizada.</div>';
             }
@@ -1211,18 +1181,23 @@ async function generarQRInline() {
         });
         const d = await r.json();
         if (!r.ok) {
-            out.innerHTML = `<div class="alert alert-error">${(d.detail && (d.detail.mensaje || d.detail)) || 'No se pudo generar el QR'}</div>`;
+            out.innerHTML = `<div class="alert alert-error">${escapeHtml((d.detail && (d.detail.mensaje || d.detail)) || 'No se pudo generar el QR')}</div>`;
+            return;
+        }
+        const qrSeguro = /^[A-Za-z0-9+\/=]+$/.test(d.qr_base64 || '') ? d.qr_base64 : '';
+        if (!qrSeguro) {
+            out.innerHTML = `<div class="alert alert-error">No se pudo generar el QR</div>`;
             return;
         }
         out.innerHTML = `
             <div style="text-align:center;">
-                <img src="data:image/png;base64,${d.qr_base64}" alt="Código QR"
+                <img src="data:image/png;base64,${qrSeguro}" alt="Código QR"
                      style="max-width:240px; border:1px solid #e2e8f0; border-radius:6px; padding:8px; background:#fff;">
                 <p style="font-size:12px; color:#4a5568; margin-top:8px;">Escaneá el código para abonar.</p>
-                ${d.alias ? `<p style="font-size:12px;color:#4a5568;margin:0;">Alias: <strong>${d.alias}</strong></p>` : ''}
+                ${d.alias ? `<p style="font-size:12px;color:#4a5568;margin:0;">Alias: <strong>${escapeHtml(d.alias)}</strong></p>` : ''}
             </div>`;
     } catch (e) {
-        out.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+        out.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(e.message)}</div>`;
     }
 }
 
@@ -1270,11 +1245,11 @@ async function cargarProgresoDashboard() {
         cont.innerHTML = `
             <p style="font-size:13px;color:#4a5568;margin:0 0 6px 0;">Promedio general</p>
             <p style="font-size:28px;font-weight:700;color:#1e40af;margin:0;">
-                ${data.promedio_general ?? '—'}
+                ${escapeHtml(data.promedio_general ?? '—')}
                 <span style="font-size:14px;color:#4a5568;font-weight:400;">/ 10</span>
             </p>
             <p style="font-size:12px;color:#4a5568;margin-top:6px;">
-                ${data.total_notas} notas en ${(data.progreso_por_unidad || []).length} unidades
+                ${escapeHtml(data.total_notas)} notas en ${(data.progreso_por_unidad || []).length} unidades
             </p>`;
     } catch {}
 }
@@ -1284,7 +1259,7 @@ async function cargarProgreso() {
     const d = await r.json();
     if (!r.ok) {
         document.getElementById('progresoDetalle').innerHTML =
-            `<div class="alert alert-error" style="margin:14px;">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error'}</div>`;
+            `<div class="alert alert-error" style="margin:14px;">${escapeHtml((d.detail && (d.detail.mensaje || d.detail)) || 'Error')}</div>`;
         return;
     }
     const data = d.data || {};
@@ -1310,16 +1285,16 @@ async function cargarProgreso() {
         const filasSec = Object.keys(nombres).map(k => {
             const v = secs[k];
             if (!v) return '';
-            return `<tr><td>${nombres[k]}</td><td><strong>${v.nota}</strong> / 10</td><td>${v.fecha || '—'}</td></tr>`;
+            return `<tr><td>${escapeHtml(nombres[k])}</td><td><strong>${escapeHtml(v.nota)}</strong> / 10</td><td>${escapeHtml(v.fecha || '—')}</td></tr>`;
         }).join('');
         const pp = (u.pain_points || []).map(p =>
-            `<li><strong>${nombres[p.seccion] || p.seccion}:</strong> ${escapeHtml(p.texto)}</li>`
+            `<li><strong>${escapeHtml(nombres[p.seccion] || p.seccion)}:</strong> ${escapeHtml(p.texto)}</li>`
         ).join('');
         return `
         <div class="unidad-block" style="border-bottom:1px solid #e2e8f0; padding:14px 16px;">
             <div class="flex-between" style="margin-bottom:10px;">
-                <h3 style="margin:0; font-size:15px;">Unidad ${u.numero} — ${escapeHtml(u.titulo)}</h3>
-                <span style="font-size:13px; color:#4a5568;">Promedio: <strong>${u.promedio ?? '—'}</strong> / 10</span>
+                <h3 style="margin:0; font-size:15px;">Unidad ${escapeHtml(u.numero)} — ${escapeHtml(u.titulo)}</h3>
+                <span style="font-size:13px; color:#4a5568;">Promedio: <strong>${escapeHtml(u.promedio ?? '—')}</strong> / 10</span>
             </div>
             <table class="data-table" style="margin-bottom:${pp ? '10px' : '0'};">
                 <thead><tr><th>Sección</th><th>Nota</th><th>Fecha</th></tr></thead>
@@ -1359,7 +1334,7 @@ async function cargarProximasClasesDetallado() {
         const r = await api('/calendario');
         const d = await r.json();
         if (!r.ok) {
-            cont.innerHTML = `<div class="alert alert-error">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error'}</div>`;
+            cont.innerHTML = `<div class="alert alert-error">${escapeHtml((d.detail && (d.detail.mensaje || d.detail)) || 'Error')}</div>`;
             return;
         }
         const clases = (d.data && d.data.clases) || d.clases || [];
@@ -1379,7 +1354,7 @@ async function cargarProximasClasesDetallado() {
                     </tr>`).join('')}</tbody>
             </table>`;
     } catch (e) {
-        cont.innerHTML = `<div class="alert alert-error">Error: ${e.message}</div>`;
+        cont.innerHTML = `<div class="alert alert-error">Error: ${escapeHtml(e.message)}</div>`;
     }
 }
 
@@ -1389,7 +1364,7 @@ async function cargarEventosAlumno() {
         const d = await r.json();
         if (!r.ok) {
             document.getElementById('listaEventosAlumno').innerHTML =
-                `<div class="alert alert-error" style="margin:14px;">${(d.detail && (d.detail.mensaje || d.detail)) || 'Error'}</div>`;
+                `<div class="alert alert-error" style="margin:14px;">${escapeHtml((d.detail && (d.detail.mensaje || d.detail)) || 'Error')}</div>`;
             return;
         }
         eventosAlumnoCache = (d.data && d.data.eventos) || [];
@@ -1403,7 +1378,7 @@ async function cargarEventosAlumno() {
         const alertas = document.getElementById('alertasEventos');
         alertas.innerHTML = proximos.length ? proximos.map(e => `
             <div class="alert alert-warning" style="margin-bottom:10px;">
-                <strong>${escapeHtml(e.tipo).toUpperCase()}</strong> — ${escapeHtml(e.titulo)} (${escapeHtml(e.fecha_inicio)})
+                <strong>${escapeHtml(String(e.tipo).toUpperCase())}</strong> — ${escapeHtml(e.titulo)} (${escapeHtml(e.fecha_inicio)})
                 ${e.descripcion ? `<br><span style="font-size:12px;">${escapeHtml(e.descripcion)}</span>` : ''}
             </div>`).join('') : '';
 
@@ -1419,7 +1394,7 @@ async function cargarEventosAlumno() {
         renderEventosAlumno();
     } catch (e) {
         document.getElementById('listaEventosAlumno').innerHTML =
-            `<div class="alert alert-error" style="margin:14px;">Error: ${e.message}</div>`;
+            `<div class="alert alert-error" style="margin:14px;">Error: ${escapeHtml(e.message)}</div>`;
     }
 }
 
@@ -1439,7 +1414,7 @@ function renderEventosAlumno() {
                     ? `${e.fecha_inicio} → ${e.fecha_fin}` : e.fecha_inicio;
                 return `<tr>
                     <td>${escapeHtml(fecha)}</td>
-                    <td><span class="badge badge-evt-${e.tipo}">${escapeHtml(e.tipo)}</span></td>
+                    <td><span class="badge badge-evt-${escapeHtml(e.tipo)}">${escapeHtml(e.tipo)}</span></td>
                     <td><strong>${escapeHtml(e.titulo)}</strong>${e.descripcion ? `<br><small style="color:#666;">${escapeHtml(e.descripcion)}</small>` : ''}</td>
                 </tr>`;
             }).join('')}</tbody>
@@ -1483,7 +1458,7 @@ function switchInstitucional(tab) {
 
 async function cargarDatosSede() {
     try {
-        const r = await fetch('/configuracion/publica');
+        const r = await apiFetch('/configuracion/publica');
         if (!r.ok) return;
         const d = await r.json();
         const p = (d.data && d.data.preferencias) || {};

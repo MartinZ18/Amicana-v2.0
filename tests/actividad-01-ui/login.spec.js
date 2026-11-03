@@ -17,12 +17,20 @@ import { test, expect } from '@playwright/test';
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-/** Genera un JWT mínimo decodificable por atob() en el frontend. */
-function makeToken(sub, rol, id) {
-  const header = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
-  const exp    = Math.floor(Date.now() / 1000) + 3600;
-  const pay    = Buffer.from(JSON.stringify({ sub, rol, id, exp })).toString('base64');
-  return `${header}.${pay}.fakesignature`;
+/**
+ * La sesión real vive en una cookie httpOnly que el servidor setea en el login.
+ * Con el login mockeado no hay cookie, así que el rol (que el frontend pide a
+ * GET /auth/me) también se mockea. El body de /login sigue trayendo access_token
+ * para clientes de API, pero el frontend tiene que ignorarlo.
+ */
+async function mockSesion(page, email, rol, id) {
+  await page.route('**/auth/me', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id, nombre: 'Test', email, rol, auth_provider: 'local' }),
+    })
+  );
 }
 
 /**
@@ -52,9 +60,10 @@ test.describe('Login – AMICANA @smoke @critical', () => {
 
   // TC-01: Login válido con rol admin → redirige a admin.html
   test('TC-01: login exitoso con admin redirige a admin.html @smoke', async ({ page }) => {
-    const token = makeToken('admin@amicana.com', 'admin', 1);
+    const token = 'aaaa.bbbb.cccc'; // el frontend no debe guardarlo
 
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'admin@amicana.com', 'admin', 1);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,
@@ -69,17 +78,22 @@ test.describe('Login – AMICANA @smoke @critical', () => {
 
     await expect(page).toHaveURL(/admin\.html/, { timeout: 6000 });
 
-    // El token quedó guardado en sessionStorage
-    const guardado = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(guardado).not.toBeNull();
-    expect(guardado.length).toBeGreaterThan(20);
+    // El token del body NO se guarda en ningún storage (la sesión va en cookie httpOnly)
+    const guardados = await page.evaluate(() => [
+      ...Object.values(localStorage),
+      ...Object.values(sessionStorage),
+    ]);
+    expect(guardados.some(v => v.includes(token))).toBe(false);
+    expect(await page.evaluate(() => sessionStorage.getItem('token'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
   });
 
   // TC-02: Login válido con rol alumno → redirige a alumno.html
   test('TC-02: login exitoso con alumno redirige a alumno.html @smoke', async ({ page }) => {
-    const token = makeToken('alumno@amicana.com', 'alumno', 5);
+    const token = 'aaaa.bbbb.cccc';
 
     await blockUnmatchedApi(page);
+    await mockSesion(page, 'alumno@amicana.com', 'alumno', 5);
     await page.route('**/login', route =>
       route.fulfill({
         status: 200,

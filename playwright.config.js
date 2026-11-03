@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: [['list'], ['html']],
   use: {
     baseURL: 'http://localhost:8000',
-    headless: false,
+    headless: process.env.HEADLESS === '1',
     trace: 'retain-on-failure',
     screenshot: 'on',
     video: 'on',
@@ -29,6 +29,11 @@ export default defineConfig({
     {
       name: 'actividad-03-regresion',
       testMatch: '**/actividad-03-regresion/**/*.spec.js',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'actividad-04-sesion',
+      testMatch: '**/actividad-04-sesion/**/*.spec.js',
       use: { ...devices['Desktop Chrome'] },
     },
   ],
