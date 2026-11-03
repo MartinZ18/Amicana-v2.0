@@ -9,7 +9,7 @@
     var LOGIN_URL = 'index.html';
     var METODOS_SEGUROS = ['GET', 'HEAD', 'OPTIONS'];
     /* Pedidos de autenticación: un 401 acá es parte del flujo, no una sesión vencida. */
-    var SIN_REDIRECCION = ['/login', '/auth/login', '/auth/register', '/auth/me', '/auth/logout'];
+    var SIN_REDIRECCION = ['/login', '/auth/login', '/auth/register', '/auth/me', '/auth/logout', '/perfil/password'];
 
     function leerCookie(nombre) {
         var partes = document.cookie ? document.cookie.split('; ') : [];

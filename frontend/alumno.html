@@ -651,7 +651,7 @@ window.addEventListener('load', async () => {
             sessionStorage.removeItem('pending_cuota_id');
             localStorage.removeItem('pending_preference_id');
             localStorage.removeItem('pending_cuota_id');
-            mostrarSeccion('secCuotas');
+            showSection('secCuotas');
             if (pagoResult === 'exito' && prefId) {
                 api(`/verificar-pago/${prefId}`)
                     .then(r => r.json())
@@ -1127,7 +1127,7 @@ function iniciarPollingPago(cuotaId, concepto) {
                 cerrarPolling();
                 cargarMisCuotas();
                 cargarCuotasDashboard();
-                mostrarSeccion('secCuotas');
+                showSection('secCuotas');
                 const mpMsg = document.getElementById('mpLinkResult');
                 if (mpMsg) mpMsg.innerHTML = '<div class="alert alert-success" style="margin-top:12px;">¡Pago aprobado! Tu cuota fue actualizada.</div>';
             }

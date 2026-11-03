@@ -233,9 +233,11 @@ async def chatbot_proxy(request: Request):
 
     # La identidad del chat sale solo de la cookie de sesión (nunca del body ni de headers que
     # mande el cliente): se saca cualquier user_token que venga en el body.
-    if isinstance(body, dict):
-        body = {k: v for k, v in body.items() if k != "user_token"}
-    session_id = (body or {}).get("session_id", "<sin-session>")
+    if not isinstance(body, dict):
+        logger.warning("[chatbot proxy] body JSON que no es un objeto desde el widget")
+        return _fallback
+    body = {k: v for k, v in body.items() if k != "user_token"}
+    session_id = body.get("session_id", "<sin-session>")
 
     if _chatbot_limiter.hit(client_ip(request)):
         logger.warning("[chatbot proxy] rate limit excedido ip=%s session=%s",
